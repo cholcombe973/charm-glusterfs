@@ -9,8 +9,8 @@ class VirtualIp:
         self.interface = interface
 
     def __str__(self):
-        IpNetwork::V4(v4) => format!("{ {", v4, self.interface),
-        IpNetwork::V6(v6) => format!("{ {", v6, self.interface),
+        IpNetwork::V4(v4) => "{} {}".format(v4, self.interface),
+        IpNetwork::V6(v6) => "{} {}".format(v6, self.interface),
 
 
 def render_ctdb_configuration(f: TextIOBase) -> int:

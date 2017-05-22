@@ -1,13 +1,12 @@
 #!/usr/bin/python3
 
 from charmhelpers.core.hookenv import action_get, action_fail
-from gluster import BitrotOption, ScrubAggression, ScrubSchedule, ScrubControl
-from gluster.volume import quota_list, volume_add_quota, volume_disable_bitrot,
-
-volume_enable_bitrot,
-
-volume_enable_quotas, volume_quotas_enabled, volume_remove_quota,
-volume_set_bitrot_option, volume_set_options
+from gluster import BitrotOption, ScrubAggression, ScrubSchedule, \
+    ScrubControl
+from gluster.volume import quota_list, volume_add_quota, \
+    volume_disable_bitrot, volume_enable_bitrot, \
+    volume_enable_quotas, volume_quotas_enabled, volume_remove_quota, \
+    volume_set_bitrot_option, volume_set_options
 import juju
 
 

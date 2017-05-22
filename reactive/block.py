@@ -1,20 +1,22 @@
 import re
 from charmhelpers.core.hookenv import log, storage_get, storage_list
 from charmhelpers.core import hookenv
+from charmhelpers.fetch import apt_install
 from enum import Enum
-from pyudev import Context, Device
+import pyudev
+from pyudev import Context
 from result import Err, Ok, Result
 import typing
 from typing import List, Optional
 import os
 
 import subprocess
-import apt.apt_install
 from .shellscript import parse, ShellScript
-import device_initialized, get_config_value
+from .main import device_initialized
 import uuid
 
 config = hookenv.config
+
 
 # Formats a block device at Path p with XFS
 class MetadataProfile(Enum):
@@ -52,7 +54,7 @@ class Device:
 
 class BrickDevice:
     def __init__(self, is_block_device: bool, initialized: bool,
-                 mount_path: str, dev_path: str):
+                 mount_path: str, dev_path: os.path):
         """
 
         :param is_block_device: 
@@ -264,7 +266,7 @@ def format_block_device(brick_device: BrickDevice,
         if filesystem.stripe_size is not None and filesystem.stripe_width is not None:
             arg_list.append("-d")
             arg_list.append("su={}".format(filesystem.stripe_size))
-            arg_list.append("sw={}".format(system.stripe_width))
+            arg_list.append("sw={}".format(filesystem.stripe_width))
         arg_list.append(device)
 
         # Check if mkfs.xfs is installed
@@ -287,13 +289,13 @@ def format_block_device(brick_device: BrickDevice,
         base_name = device.basename()
         # Mount at /mnt/dev_name
         post_setup_commands = []
-        arg_list = ["/sbin/zpool", "create", "-f", "-m", "/mnt/{}".format(name),
+        arg_list = ["/sbin/zpool", "create", "-f", "-m", "/mnt/{}".format(base_name),
                     name, device]
         zpool_create = subprocess.Popen(arg_list)
 
         if filesystem.block_size is not None:
             # If zpool creation is successful then we set these
-            block_size = block_size
+            block_size = filesystem.block_size
             log("block_size {} is not a power of two. Rounding up to nearest "
                 "power of 2".format(block_size))
             block_size = block_size.next_power_of_two()
@@ -334,36 +336,28 @@ def format_block_device(brick_device: BrickDevice,
                             device=brick_device))
 
 
-"""
-#[test]
-def test_get_device_info()
-    print!(":", get_device_info("/dev/sda1"))
-    print!(":", get_device_info("/dev/loop0"))
-"""
-
-
-def get_size(device: Device) -> Optional[int]:
+def get_size(device: pyudev.Device) -> Optional[int]:
     size = device.attributes.get('size')
     if size is not None:
         return int(size) * 512
     return None
 
 
-def get_uuid(device: Device) -> Optional[uuid.UUID]:
+def get_uuid(device: pyudev.Device) -> Optional[uuid.UUID]:
     uuid_str = device.properties.get("ID_FS_UUID")
     if uuid_str is not None:
         return uuid.UUID(uuid_str)
     return None
 
 
-def get_fs_type(device: Device) -> Optional[FilesystemType]:
+def get_fs_type(device: pyudev.Device) -> Optional[FilesystemType]:
     fs_type_str = device.properties.get("ID_FS_TYPE")
     if fs_type_str is not None:
         return FilesystemType.from_str(fs_type_str)
     return None
 
 
-def get_media_type(device: Device) -> MediaType:
+def get_media_type(device: pyudev.Device) -> MediaType:
     device_sysname = device.sys_name
     loop_regex = re.compile(r"loop\d+")
 
@@ -379,9 +373,9 @@ def get_media_type(device: Device) -> MediaType:
         return MediaType.Rotational
 
 
-def is_block_device(device_path: os.path) -> Result:
+def is_block_device(device_path: str) -> Result:
     context = Context()
-    sysname = device_path.basename()
+    sysname = os.path.basename(device_path)
     for device in context.list_devices(subsystem='block'):
         if device.sys_name == sysname:
             return Ok(True)
@@ -411,11 +405,11 @@ def get_device_info(device_path: os.path) -> Result:  # <Device, str>
 def scan_devices(devices: List[str]) -> Result:  # <Vec<BrickDevice>, str>
     brick_devices = []  #: Vec<BrickDevice> = []
     for brick in devices:
-        device_path = brick
+        device_path = os.path.join(brick)
         # Translate to mount location
         brick_filename = os.path.basename(device_path)
         log("Checking if {} is a block device".format(device_path))
-        block_device = is_block_device(os.path.join(device_path))
+        block_device = is_block_device(device_path)
         if block_device.is_err():
             log("Skipping invalid block device: {}".format(device_path))
             continue
@@ -438,8 +432,7 @@ def set_elevator(device_path: os.path,
                  elevator: Scheduler) -> Result:  # <usize, .std.io.Error>
     log("Setting io scheduler for {} to {}".format(device_path, elevator))
     device_name = device_path.basename()
-    lines = []
-    f = File.open("/etc/rc.local")
+    f = open("/etc/rc.local", "r")
     elevator_cmd = "echo {scheduler} > /sys/block/{device}/queue/scheduler".format(
         scheduler=elevator, device=device_name)
 
@@ -447,15 +440,13 @@ def set_elevator(device_path: os.path,
     if script.is_ok():
         for line in script.value.commands:
             if device_name in line:
-            existing_cmd = script.commands.iter().position( | cmd | cmd.contains(device_name))
-        pass
-    if Some(pos) = existing_cmd:
-        script.commands.remove(pos)
-
-    script.commands.insert(0, elevator_cmd)
-    f = File.create("/etc/rc.local")
-    bytes_written = script.write(f)
-    return Ok(bytes_written)
+                line = elevator_cmd
+    f = open("/etc/rc.local", "w", encoding="utf-8")
+    bytes_written = script.value.write(f)
+    if bytes_written.is_ok():
+        return Ok(bytes_written.value)
+    else:
+        return Err(bytes_written.value)
 
 
 def weekly_defrag(mount: str, fs_type: FilesystemType, interval: str) -> Result:
