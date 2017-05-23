@@ -1,13 +1,12 @@
 #!/usr/bin/python3
 
-from charmhelpers.core.hookenv import action_get, action_fail
-from gluster import BitrotOption, ScrubAggression, ScrubSchedule, \
+from charmhelpers.core.hookenv import action_get, action_fail, action_set
+from lib.gluster.lib import BitrotOption, ScrubAggression, ScrubSchedule, \
     ScrubControl
-from gluster.volume import quota_list, volume_add_quota, \
+from lib.gluster.volume import quota_list, volume_add_quota, \
     volume_disable_bitrot, volume_enable_bitrot, \
     volume_enable_quotas, volume_quotas_enabled, volume_remove_quota, \
     volume_set_bitrot_option, volume_set_options
-import juju
 
 
 def enable_bitrot_scan():
@@ -140,7 +139,7 @@ def list_volume_quotas():
                     quota.path,
                     quota.limit,
                     quota.used)
-            juju.action_set("quotas", "\n".join(quota_string))
+            action_set("quotas", "\n".join(quota_string))
     except GlusterError as e:
         action_fail("failed to get quota information: {}".format(e.message))
 
@@ -155,7 +154,7 @@ def set_volume_options():
 
     # Gather all of the action parameters up at once.  We don't know what
     # the user wants to change.
-    options = juju.action_get()
+    options = action_get()
     settings = []
     for (key, value) in options:
         if key != "volume":

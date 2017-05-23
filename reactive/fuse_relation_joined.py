@@ -1,4 +1,4 @@
-use gluster::volume::volume_list
+from lib.gluster.volume import volume_list
 
 def fuse_relation_joined():
     # Fuse clients only need one ip address and they can discover the rest

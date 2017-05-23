@@ -1,4 +1,4 @@
-from charmhelpers.core.hookenv import status_set
+from charmhelpers.core.hookenv import config, status_set
 import os
 from io import TextIOBase
 
@@ -38,7 +38,7 @@ def samba_config_changed(volume_name: str) -> bool:
 
 
 def setup_samba(volume_name: str):
-    cifs_config = juju.config_get("cifs")
+    cifs_config = config["cifs"]
     if cifs_config is None:
         # Samba isn't enabled
         # log!("Samba option is not enabled")

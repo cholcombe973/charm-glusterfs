@@ -4,3 +4,5 @@ os-testr>=0.4.1
 charms.reactive
 mock>=1.2
 coverage>=3.6
+pyudev>=0.16
+result>=0.2.2

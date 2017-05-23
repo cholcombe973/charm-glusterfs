@@ -1,5 +1,5 @@
 
-
+"""
 def nfs_relation_joined() -> Result<(), String>
     config_value = juju::config_get("virtual_ip_addresses")
     volumes = volume_list()
@@ -15,3 +15,4 @@ def nfs_relation_joined() -> Result<(), String>
         dns_name = resolve_first_vip_to_dns()?
         relation_set("gluster-public-address", dns_name)
 
+"""
