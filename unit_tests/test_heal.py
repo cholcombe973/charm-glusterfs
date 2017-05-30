@@ -12,15 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import mock
+import sys
 import unittest
 from unittest.mock import MagicMock
 
+import mock
+
 from lib.gluster import heal
+
+mock_apt = MagicMock()
+sys.modules['apt'] = mock_apt
+mock_apt.apt_pkg = MagicMock()
 
 
 class Test(unittest.TestCase):
-
     @mock.patch('os.listdir')
     def testGetHealCount(self, _listdir):
         _listdir.return_value = ['xattrop_one', 'healme', 'andme']
@@ -30,5 +35,4 @@ class Test(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    # import sys;sys.argv = ['', 'Test.testName']
     unittest.main()

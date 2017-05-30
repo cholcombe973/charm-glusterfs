@@ -12,10 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import mock
 import unittest
 
-from os import path
+import mock
+from result import Ok
+
 from reactive import block
 
 
@@ -23,27 +24,48 @@ class Test(unittest.TestCase):
     def testGetDeviceInfo(self):
         pass
 
-    def testGetJujuBricks(self):
-        pass
+    @mock.patch('reactive.block.scan_devices')
+    @mock.patch('reactive.block.storage_get')
+    @mock.patch('reactive.block.storage_list')
+    @mock.patch('reactive.block.log')
+    def testGetJujuBricks(self, _log, _storage_list, _storage_get,
+                          _scan_devices):
+        _storage_list.return_value = ['data/0', 'data/1', 'data/2']
+        _storage_get.side_effect = lambda x, y: "/dev/{}".format(
+            y.split('/')[1])
+        _scan_devices.return_value = Ok(["/dev/0", "/dev/1", "/dev/2"])
+        bricks = block.get_juju_bricks()
+        self.assertTrue(bricks.is_ok())
+        self.assertListEqual(["/dev/0", "/dev/1", "/dev/2"], bricks.value)
 
-    def testGetManualBricks(self):
-        pass
-
-    @mock.patch('reactive.block.Context')
-    def testIsBlockDevice(self, _context):
-        device = mock.Mock()
-        device.sys_name.return_value = "sda"
-        _context.list_devices.return_value = device
-        block.is_block_device(path("/dev/sda"))
+    @mock.patch('reactive.block.scan_devices')
+    @mock.patch('reactive.block.config')
+    @mock.patch('reactive.block.log')
+    def testGetManualBricks(self, _log, _config, _scan_devices):
+        _config.return_value = "/dev/sda /dev/sdb /dev/sdc"
+        _scan_devices.return_value = Ok(["/dev/sda", "/dev/sdb", "/dev/sdc"])
+        bricks = block.get_manual_bricks()
+        self.assertTrue(bricks.is_ok())
+        self.assertListEqual(["/dev/sda", "/dev/sdb", "/dev/sdc"], bricks.value)
 
     def testSetElevator(self):
         pass
 
-    def testScanDevices(self):
-        pass
+    @mock.patch('reactive.block.is_block_device')
+    @mock.patch('reactive.block.device_initialized')
+    def testScanDevices(self, _is_block_device, _device_initialized):
+        _is_block_device.return_value = Ok(True)
+        _device_initialized.return_value = Ok(True)
+        # result = block.scan_devices(["/dev/sda", "/dev/sdb", "/dev/sdc"])
+        # self.assertTrue(result.is_ok())
+        # print("scan_devices: {}".format(result.value))
 
-    def testWeeklyDefrag(self):
-        pass
+        # @mock.patch('reactive.block.log')
+        # def testWeeklyDefrag(self, _log):
+        #    block.weekly_defrag(mount="/mnt/sda",
+        #                        fs_type=block.FilesystemType.Xfs,
+        #                        interval="daily")
+        #    pass
 
 
 if __name__ == "__main__":

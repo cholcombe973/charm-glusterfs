@@ -1,5 +1,65 @@
-__author__ = 'Chris Holcombe <chris.holcombe@canonical.com>'
+# Copyright 2017 Canonical Ltd
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
+import sys
+import unittest
+from unittest.mock import MagicMock
+
+from result import Ok
+
+from lib.gluster.peer import Peer, State
+from reactive import main
+
+mock_apt = MagicMock()
+sys.modules['apt'] = mock_apt
+mock_apt.apt_pkg = MagicMock()
+
+import uuid
+
+
+class Test(unittest.TestCase):
+    def testPeersAreNotReady(self):
+        peer_list = [
+            Peer(uuid=uuid.UUID('3da2c343-7c67-499d-a6bb-68591cc72bc1'),
+                 hostname="host-{}".format(
+                     uuid.UUID('8fd64553-8925-41f5-b64a-1ba4d359c73b')),
+                 status=State.PeerInCluster),
+            Peer(uuid=uuid.UUID('3da2c343-7c67-499d-a6bb-68591cc72bc2'),
+                 hostname="host-{}".format(
+                     uuid.UUID('8fd64553-8925-41f5-b64a-1ba4d359c73c')),
+                 status=State.AcceptedPeerRequest),
+        ]
+        result = main.peers_are_ready(Ok(peer_list))
+        self.assertTrue(result, False)
+
+    def testPeersAreReady(self):
+        peer_list = [
+            Peer(uuid=uuid.UUID('3da2c343-7c67-499d-a6bb-68591cc72bc1'),
+                 hostname="host-{}".format(
+                     uuid.UUID('8fd64553-8925-41f5-b64a-1ba4d359c73b')),
+                 status=State.PeerInCluster),
+            Peer(uuid=uuid.UUID('3da2c343-7c67-499d-a6bb-68591cc72bc2'),
+                 hostname="host-{}".format(
+                     uuid.UUID('8fd64553-8925-41f5-b64a-1ba4d359c73c')),
+                 status=State.PeerInCluster),
+        ]
+        result = main.peers_are_ready(Ok(peer_list))
+        self.assertTrue(result, True)
+
+if __name__ == "__main__":
+    # import sys;sys.argv = ['', 'Test.testName']
+    unittest.main()
 """
 #[cfg(test)]
 mod tests {

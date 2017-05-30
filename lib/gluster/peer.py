@@ -5,7 +5,7 @@ from result import Ok, Err, Result
 import uuid
 import xml.etree.ElementTree as etree
 
-from gluster.lib import resolve_to_ip, run_command
+from .lib import resolve_to_ip, run_command
 
 
 # A enum representing the possible States that a Peer can be in

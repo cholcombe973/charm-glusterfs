@@ -1,21 +1,53 @@
+import os
 import re
-from charmhelpers.core.hookenv import log, storage_get, storage_list
-from charmhelpers.core import hookenv
-from charmhelpers.fetch import apt_install
+import subprocess
+import typing
+import uuid
 from enum import Enum
+from typing import List, Optional, Tuple
+
 import pyudev
+from charmhelpers.core import hookenv
+from charmhelpers.core.hookenv import log, storage_get, storage_list
+from charmhelpers.core.unitdata import kv
+from charmhelpers.fetch import apt_install
 from pyudev import Context
 from result import Err, Ok, Result
-import typing
-from typing import List, Optional
-import os
 
-import subprocess
-from .shellscript import parse, ShellScript
-from .main import device_initialized
-import uuid
+from lib.gluster.lib import run_command
+from .shellscript import parse
 
 config = hookenv.config
+
+
+class FilesystemType(Enum):
+    Btrfs = "btrfs",
+    Ext2 = "ext2",
+    Ext3 = "ext3",
+    Ext4 = "ext4",
+    Xfs = "xfs",
+    Zfs = "zfs",
+    Unknown = "unknown",
+
+    @staticmethod
+    def from_str(s):
+        if s == "btrfs":
+            return FilesystemType.Btrfs
+        elif s == "ext2":
+            return FilesystemType.Ext2
+        elif s == "ext3":
+            return FilesystemType.Ext3
+        elif s == "ext4":
+            return FilesystemType.Ext4
+        elif s == "xfs":
+            return FilesystemType.Xfs
+        elif s == "zfs":
+            return FilesystemType.Zfs
+        else:
+            return FilesystemType.Unknown
+
+    def __str__(self):
+        return "{}".format(self.value)
 
 
 # Formats a block device at Path p with XFS
@@ -32,18 +64,26 @@ class MetadataProfile(Enum):
         return "{}".format(self.value)
 
 
+class MediaType(Enum):
+    SolidState = 0,
+    Rotational = 1,
+    Loopback = 2,
+    Unknown = 3,
+
+
 class Device:
-    def __init__(self, id: Optional[uuid], name: str, media_type: MediaType,
+    def __init__(self, id: Optional[uuid.UUID], name: str,
+                 media_type: MediaType,
                  capacity: int, fs_type: FilesystemType):
         """
-        This will be used to make intelligent decisions about setting up 
+        This will be used to make intelligent decisions about setting up
         the device
 
-        :param id: 
-        :param name: 
-        :param media_type: 
-        :param capacity: 
-        :param fs_type: 
+        :param id:
+        :param name:
+        :param media_type:
+        :param capacity:
+        :param fs_type:
         """
         self.id = id
         self.name = name
@@ -70,7 +110,7 @@ class BrickDevice:
 
 class AsyncInit:
     def __init__(self, format_child: subprocess.Popen,
-                 post_setup_commands: List[(str, List[str])],
+                 post_setup_commands: List[Tuple[str, List[str]]],
                  device: BrickDevice):
         """
         The child process needed for this device initialization
@@ -108,43 +148,6 @@ class Scheduler(Enum):
             return Scheduler.Noop
 
 
-class MediaType(Enum):
-    SolidState = 0,
-    Rotational = 1,
-    Loopback = 2,
-    Unknown = 3,
-
-
-class FilesystemType(Enum):
-    Btrfs = "btrfs",
-    Ext2 = "ext2",
-    Ext3 = "ext3",
-    Ext4 = "ext4",
-    Xfs = "xfs",
-    Zfs = "zfs",
-    Unknown = "unknown",
-
-    @staticmethod
-    def from_str(s):
-        if s == "btrfs":
-            return FilesystemType.Btrfs
-        elif s == "ext2":
-            return FilesystemType.Ext2
-        elif s == "ext3":
-            return FilesystemType.Ext3
-        elif s == "ext4":
-            return FilesystemType.Ext4
-        elif s == "xfs":
-            return FilesystemType.Xfs
-        elif s == "zfs":
-            return FilesystemType.Zfs
-        else:
-            return FilesystemType.Unknown
-
-    def __str__(self):
-        return "{}".format(self.value)
-
-
 class Filesystem:
     def __init__(self):
         pass
@@ -153,6 +156,12 @@ class Filesystem:
 class Btrfs(Filesystem):
     def __init__(self, metadata_profile: MetadataProfile, leaf_size: int,
                  node_size: int):
+        """
+
+        :param metadata_profile: 
+        :param leaf_size: 
+        :param node_size: 
+        """
         super().__init__()
         self.metadata_profile = metadata_profile
         self.leaf_size = leaf_size
@@ -163,6 +172,13 @@ class Ext4(Filesystem):
     def __init__(self, inode_size: Optional[int],
                  reserved_blocks_percentage: int, stride: Optional[int],
                  stripe_width: Optional[int]):
+        """
+
+        :param inode_size: 
+        :param reserved_blocks_percentage: 
+        :param stride: 
+        :param stripe_width: 
+        """
         super().__init__()
         if inode_size is None:
             self.inode_size = 512
@@ -178,10 +194,19 @@ class Ext4(Filesystem):
 
 class Xfs(Filesystem):
     # This is optional.  Boost knobs are on by default:
-    # http:#xfs.org/index.php/XFS_FAQ#Q:_I_want_to_tune_my_XFS_filesystems_for_.3Csomething.3E
+    # http:#xfs.org/index.php/XFS_FAQ#Q:
+    # _I_want_to_tune_my_XFS_filesystems_for_.3Csomething.3E
     def __init__(self, block_size: Optional[int], inode_size: Optional[int],
                  stripe_size: Optional[int], stripe_width: Optional[int],
                  force: bool):
+        """
+
+        :param block_size: 
+        :param inode_size: 
+        :param stripe_size: 
+        :param stripe_width: 
+        :param force: 
+        """
         super().__init__()
         self.block_size = block_size
         if inode_size is None:
@@ -197,25 +222,25 @@ class Zfs(Filesystem):
     # / The default blocksize for volumes is 8 Kbytes. Any
     # / power of 2 from 512 bytes to 128 Kbytes is valid.
     def __init__(self, block_size: Optional[int], compression: Optional[bool]):
+        """
+
+        :param block_size: 
+        :param compression: 
+        """
         super().__init__()
         self.block_size = block_size
         # / Enable compression on the volume. Default is False
         self.compression = compression
 
 
-def run_command(command: str, arg_list: List[str]) -> (int, str):
-    cmd = []
-    for arg in arg_list:
-        cmd.append(arg)
-    try:
-        output = subprocess.check_output(cmd, stderr=subprocess.PIPE)
-        return 0, output
-    except subprocess.CalledProcessError as e:
-        return e.returncode, e.output
-
-
 # This assumes the device is formatted at this point
-def mount_device(device: Device, mount_point: str) -> (int, str):
+def mount_device(device: Device, mount_point: str) -> Result:
+    """
+
+    :param device: 
+    :param mount_point: 
+    :return: 
+    """
     arg_list = []
     if device.id:
         arg_list.append("-U")
@@ -224,11 +249,25 @@ def mount_device(device: Device, mount_point: str) -> (int, str):
         arg_list.append("/dev/{}".format(device.name))
 
     arg_list.append(mount_point)
-    return run_command("mount", arg_list)
+    return run_command("mount", arg_list, True, False)
+
+
+def power_of_2(number: int) -> bool:
+    return ((number - 1) & number == 0) and not number == 0
+
+
+def next_power_of_two(x: int) -> int:
+    return 2 ** (x - 1).bit_length()
 
 
 def format_block_device(brick_device: BrickDevice,
                         filesystem: Filesystem) -> AsyncInit:
+    """
+
+    :param brick_device: 
+    :param filesystem: 
+    :return: 
+    """
     device = brick_device.dev_path
     if type(filesystem) is Btrfs:
         filesystem = typing.cast(Btrfs, filesystem)
@@ -255,15 +294,16 @@ def format_block_device(brick_device: BrickDevice,
 
         if filesystem.block_size is not None:
             block_size = filesystem.block_size
-            if not block_size.is_power_of_two():
+            if not power_of_2(block_size):
                 log("block_size {} is not a power of two. Rounding up to "
                     "nearest power of 2".format(block_size))
-                block_size = block_size.next_power_of_two()
+                block_size = next_power_of_two(block_size)
 
             arg_list.append("-b")
             arg_list.append("size={}".format(filesystem.block_size))
 
-        if filesystem.stripe_size is not None and filesystem.stripe_width is not None:
+        if filesystem.stripe_size is not None and filesystem.stripe_width \
+                is not None:
             arg_list.append("-d")
             arg_list.append("su={}".format(filesystem.stripe_size))
             arg_list.append("sw={}".format(filesystem.stripe_width))
@@ -289,8 +329,9 @@ def format_block_device(brick_device: BrickDevice,
         base_name = device.basename()
         # Mount at /mnt/dev_name
         post_setup_commands = []
-        arg_list = ["/sbin/zpool", "create", "-f", "-m", "/mnt/{}".format(base_name),
-                    name, device]
+        arg_list = ["/sbin/zpool", "create", "-f", "-m",
+                    "/mnt/{}".format(base_name),
+                    base_name, device]
         zpool_create = subprocess.Popen(arg_list)
 
         if filesystem.block_size is not None:
@@ -298,18 +339,19 @@ def format_block_device(brick_device: BrickDevice,
             block_size = filesystem.block_size
             log("block_size {} is not a power of two. Rounding up to nearest "
                 "power of 2".format(block_size))
-            block_size = block_size.next_power_of_two()
+            block_size = next_power_of_two(block_size)
             post_setup_commands.append(("/sbin/zfs",
                                         ["set",
                                          "recordsize={}".format(block_size),
-                                         name]))
+                                         base_name]))
         if filesystem.compression is not None:
             post_setup_commands.append(("/sbin/zfs", ["set", "compression=on",
-                                                      name]))
+                                                      base_name]))
 
         post_setup_commands.append(("/sbin/zfs", ["set", "acltype=posixacl",
-                                                  name]))
-        post_setup_commands.append(("/sbin/zfs", ["set", "atime=off", name]))
+                                                  base_name]))
+        post_setup_commands.append(
+            ("/sbin/zfs", ["set", "atime=off", base_name]))
         return Ok(AsyncInit(format_child=zpool_create,
                             post_setup_commands=post_setup_commands,
                             device=brick_device))
@@ -337,6 +379,11 @@ def format_block_device(brick_device: BrickDevice,
 
 
 def get_size(device: pyudev.Device) -> Optional[int]:
+    """
+
+    :param device: 
+    :return: 
+    """
     size = device.attributes.get('size')
     if size is not None:
         return int(size) * 512
@@ -344,6 +391,11 @@ def get_size(device: pyudev.Device) -> Optional[int]:
 
 
 def get_uuid(device: pyudev.Device) -> Optional[uuid.UUID]:
+    """
+
+    :param device: 
+    :return: 
+    """
     uuid_str = device.properties.get("ID_FS_UUID")
     if uuid_str is not None:
         return uuid.UUID(uuid_str)
@@ -351,6 +403,11 @@ def get_uuid(device: pyudev.Device) -> Optional[uuid.UUID]:
 
 
 def get_fs_type(device: pyudev.Device) -> Optional[FilesystemType]:
+    """
+
+    :param device: 
+    :return: 
+    """
     fs_type_str = device.properties.get("ID_FS_TYPE")
     if fs_type_str is not None:
         return FilesystemType.from_str(fs_type_str)
@@ -358,6 +415,11 @@ def get_fs_type(device: pyudev.Device) -> Optional[FilesystemType]:
 
 
 def get_media_type(device: pyudev.Device) -> MediaType:
+    """
+
+    :param device: 
+    :return: 
+    """
     device_sysname = device.sys_name
     loop_regex = re.compile(r"loop\d+")
 
@@ -374,6 +436,11 @@ def get_media_type(device: pyudev.Device) -> MediaType:
 
 
 def is_block_device(device_path: str) -> Result:
+    """
+
+    :param device_path: 
+    :return: 
+    """
     context = Context()
     sysname = os.path.basename(device_path)
     for device in context.list_devices(subsystem='block'):
@@ -384,6 +451,11 @@ def is_block_device(device_path: str) -> Result:
 
 # Tries to figure out what type of device this is
 def get_device_info(device_path: os.path) -> Result:  # <Device, str>
+    """
+
+    :param device_path: 
+    :return: 
+    """
     context = Context()
     sysname = device_path.basename()
 
@@ -402,8 +474,31 @@ def get_device_info(device_path: os.path) -> Result:  # <Device, str>
     return Err("Unable to find device with name {}".format(device_path))
 
 
-def scan_devices(devices: List[str]) -> Result:  # <Vec<BrickDevice>, str>
-    brick_devices = []  #: Vec<BrickDevice> = []
+# Given a dev device path /dev/xvdb this will check to see if the device
+# has been formatted and mounted
+def device_initialized(brick_path: os.path) -> Result:
+    """
+    Connect to the default unitdata database
+
+    :param brick_path:
+    """
+    log("Connecting to unitdata storage")
+    unit_storage = kv()
+    log("Getting unit_info")
+    unit_info = unit_storage.get(brick_path)
+    log("{} initialized: {}".format(brick_path, unit_info))
+    # Either it's Some() and we know about the unit
+    # or it's None and we don't know and therefore it's not initialized
+    return Ok(unit_info.unwrap_or(False))
+
+
+def scan_devices(devices: List[str]) -> Result:
+    """
+
+    :param devices: 
+    :return: 
+    """
+    brick_devices = []
     for brick in devices:
         device_path = os.path.join(brick)
         # Translate to mount location
@@ -418,7 +513,7 @@ def scan_devices(devices: List[str]) -> Result:  # <Vec<BrickDevice>, str>
         is_initialized = device_initialized(device_path)
         if is_initialized.is_ok():
             initialized = True
-        mount_path = "/mnt/{}".format(brick_filename)
+        mount_path = os.path.join(os.sep, "mnt", brick_filename)
         # All devices start at initialized is False
         brick_devices.append(BrickDevice(
             is_block_device=block_device.value,
@@ -429,12 +524,18 @@ def scan_devices(devices: List[str]) -> Result:  # <Vec<BrickDevice>, str>
 
 
 def set_elevator(device_path: os.path,
-                 elevator: Scheduler) -> Result:  # <usize, .std.io.Error>
+                 elevator: Scheduler) -> Result:
+    """
+
+    :param device_path: 
+    :param elevator: 
+    :return: 
+    """
     log("Setting io scheduler for {} to {}".format(device_path, elevator))
     device_name = device_path.basename()
     f = open("/etc/rc.local", "r")
-    elevator_cmd = "echo {scheduler} > /sys/block/{device}/queue/scheduler".format(
-        scheduler=elevator, device=device_name)
+    elevator_cmd = "echo {scheduler} > /sys/block/{device}/queue/" \
+                   "scheduler".format(scheduler=elevator, device=device_name)
 
     script = parse(f)
     if script.is_ok():
@@ -450,6 +551,13 @@ def set_elevator(device_path: os.path,
 
 
 def weekly_defrag(mount: str, fs_type: FilesystemType, interval: str) -> Result:
+    """
+
+    :param mount: 
+    :param fs_type: 
+    :param interval: 
+    :return: 
+    """
     log("Scheduling weekly defrag for {}".format(mount))
     crontab = os.path.join(os.sep, "var", "spool", "cron", "crontabs", "root")
     defrag_command = ""
@@ -487,7 +595,11 @@ def weekly_defrag(mount: str, fs_type: FilesystemType, interval: str) -> Result:
         return Ok(written_bytes)
 
 
-def get_manual_bricks() -> Result:  # <Vec<BrickDevice>, str>
+def get_manual_bricks() -> Result:
+    """
+
+    :return: 
+    """
     log("Gathering list of manually specified brick devices")
     brick_list = []
     manual_config_brick_devices = config["brick_devices"]
@@ -498,10 +610,16 @@ def get_manual_bricks() -> Result:  # <Vec<BrickDevice>, str>
     log("List of manual storage brick devices: {}".format(
         manual_config_brick_devices))
     bricks = scan_devices(manual_config_brick_devices)
-    return Ok(bricks)
+    if bricks.is_err():
+        return Err(bricks.value)
+    return Ok(bricks.value)
 
 
-def get_juju_bricks() -> Result:  # <Vec<BrickDevice>, str>
+def get_juju_bricks() -> Result:
+    """
+
+    :return: 
+    """
     log("Gathering list of juju storage brick devices")
     # Get juju storage devices
     brick_list = []
@@ -509,11 +627,13 @@ def get_juju_bricks() -> Result:  # <Vec<BrickDevice>, str>
     for brick in juju_config_brick_devices:
         if brick is None:
             continue
-        s = storage_get(brick)
+        s = storage_get("location", brick)
         if s is not None:
             brick_list.append(s.strip())
 
     log("List of juju storage brick devices: {}".format(
         juju_config_brick_devices))
     bricks = scan_devices(juju_config_brick_devices)
-    return Ok(bricks)
+    if bricks.is_err():
+        return Err(bricks.value)
+    return Ok(bricks.value)

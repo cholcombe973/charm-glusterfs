@@ -6,17 +6,44 @@ import time
 from typing import Optional
 import uuid
 
+from lib.gluster.lib import run_command
+from lib.gluster.peer import Peer
 from lib.gluster.volume import volume_info
-from .main import get_glusterfs_version
 from charmhelpers.fetch import apt_install
 from charmhelpers.core.host import service_start, service_stop
 from charmhelpers.core.hookenv import config, log, status_set
 
 
+def get_glusterfs_version() -> Result:
+    """
+
+    :return:
+    """
+    cmd = ["-s", "glusterfs-server"]
+    output = run_command("dpkg", cmd, True, False)
+    if output.is_ok():
+        for line in output.value:
+            if line.startswith("Version"):
+                # return the version
+                parts = line.split(" ")
+                if len(parts) is 2:
+                    return Ok(parts[1])
+                else:
+                    return Err(
+                        "apt-cache Version string is invalid: {}".format(line))
+    else:
+        return Err(output)
+    return Err("Unable to find glusterfs-server version")
+
+
 def get_local_uuid() -> Result:
-    # File looks like this:
-    # UUID=30602134-698f-4e53-8503-163e175aea85
-    # operating-version=30800
+    """
+    File looks like this:
+    UUID=30602134-698f-4e53-8503-163e175aea85
+    operating-version=30800
+
+    :return: 
+    """
     with open("/var/lib/glusterd/glusterd.info", "r") as f:
         lines = f.readlines()
         for line in lines:
@@ -28,14 +55,18 @@ def get_local_uuid() -> Result:
 
 
 def roll_cluster(new_version: str) -> Result:
-    # Edge cases:
-    # 1. Previous node dies on upgrade, can we retry
-    # This is tricky to get right so here's what we're going to do.
-    # :param new_version: str of the version to upgrade to
-    # There's 2 possible cases: Either I'm first in line or not.
-    # If I'm not first in line I'll wait a random time between 5-30 seconds
-    # and test to see if the previous peer is upgraded yet.
-    #
+    """
+    Edge cases:
+    1. Previous node dies on upgrade, can we retry
+    This is tricky to get right so here's what we're going to do.
+    :param new_version: str of the version to upgrade to
+    There's 2 possible cases: Either I'm first in line or not.
+    If I'm not first in line I'll wait a random time between 5-30 seconds
+    and test to see if the previous peer is upgraded yet.
+
+    :param new_version: 
+    :return: 
+    """
     log("roll_cluster called with {}".format(new_version))
     volume_name = config["volume_name"]
     my_uuid = get_local_uuid()
@@ -43,8 +74,10 @@ def roll_cluster(new_version: str) -> Result:
         return Err(my_uuid.value)
 
     # volume_name always has a default
-    volume_bricks = volume_info(volume_name).bricks
-    peer_list = volume_bricks.iter().map( | x | x.peer.clone())
+    volume_bricks = volume_info(volume_name)
+    if volume_bricks.is_err():
+        return Err(volume_bricks.value)
+    peer_list = volume_bricks.value.bricks.peers
     log("peer_list: {}".format(peer_list))
 
     # Sort by UUID
@@ -70,6 +103,13 @@ def roll_cluster(new_version: str) -> Result:
 
 
 def upgrade_peer(new_version: str) -> Result:
+    """
+
+    :param new_version: 
+    :return: 
+    """
+    from .main import update_status
+
     current_version = get_glusterfs_version()
     status_set(workload_state="maintenance", message="Upgrading peer")
     log("Current ceph version is {}".format(current_version))
@@ -78,11 +118,17 @@ def upgrade_peer(new_version: str) -> Result:
     service_stop("glusterfs-server")
     apt_install(["glusterfs-server", "glusterfs-common", "glusterfs-client"])
     service_start("glusterfs-server")
-    super.update_status()
+    update_status()
     return Ok(())
 
 
 def lock_and_roll(my_uuid: uuid.UUID, version: str) -> Result:
+    """
+
+    :param my_uuid: 
+    :param version: 
+    :return: 
+    """
     start_timestamp = time.time()
 
     log("gluster_key_set {}_{}_start {}".format(my_uuid, version,
@@ -104,6 +150,11 @@ def lock_and_roll(my_uuid: uuid.UUID, version: str) -> Result:
 
 
 def gluster_key_get(key: str) -> Optional[float]:
+    """
+
+    :param key: 
+    :return: 
+    """
     upgrade_key = os.path.join(os.sep, "mnt", "glusterfs", ".upgrade", key)
     if not os.path.exists(upgrade_key):
         return None
@@ -126,6 +177,12 @@ def gluster_key_get(key: str) -> Optional[float]:
 
 
 def gluster_key_set(key: str, timestamp: float) -> Result:
+    """
+
+    :param key: 
+    :param timestamp: 
+    :return: 
+    """
     p = os.path.join(os.sep, "mnt", "glusterfs", ".upgrade")
     if os.path.exists(p):
         os.makedirs(p)
@@ -145,6 +202,12 @@ def gluster_key_exists(key: str) -> bool:
 
 
 def wait_on_previous_node(previous_node: Peer, version: str) -> Result:
+    """
+
+    :param previous_node: 
+    :param version: 
+    :return: 
+    """
     log("Previous node is: {}".format(previous_node))
     previous_node_finished = gluster_key_exists(
         "{}_{}_done".format(previous_node.uuid, version))

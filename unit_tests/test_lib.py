@@ -12,11 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import mock
 import unittest
-from lib.gluster import lib
 from ipaddress import ip_address
+
+import mock
 from result import Ok
+import sys
+
+from lib.gluster import lib
+
+mock_apt = mock.MagicMock()
+sys.modules['apt'] = mock_apt
+mock_apt.apt_pkg = mock.MagicMock()
 
 
 class TestResolveToIp(unittest.TestCase):

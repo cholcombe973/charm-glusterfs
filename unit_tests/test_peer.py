@@ -12,12 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from lib.gluster import peer
+import sys
+import unittest
+import uuid
 from ipaddress import ip_address
+
 import mock
 from result import Ok
-import uuid
-import unittest
+
+from lib.gluster import peer
+
+mock_apt = mock.MagicMock()
+sys.modules['apt'] = mock_apt
+mock_apt.apt_pkg = mock.MagicMock()
 
 
 class Test(unittest.TestCase):

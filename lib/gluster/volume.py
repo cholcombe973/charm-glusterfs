@@ -5,24 +5,25 @@ from typing import Dict, List
 import uuid
 import xml.etree.ElementTree as etree
 
-from gluster.peer import get_peer
-from gluster.peer import Peer
-from gluster.lib import BitrotOption, get_local_ip, GlusterError, \
+from .peer import get_peer
+from .peer import Peer
+from .lib import BitrotOption, get_local_ip, GlusterError, \
     GlusterOption, resolve_to_ip, run_command
 
 
 # A Gluster Brick consists of a Peer and a path to the mount point
 class Brick(object):
-    def __init__(self, uuid: uuid.UUID, peer: Peer, path, is_arbiter: bool):
+    def __init__(self, brick_uuid: uuid.UUID, peer: Peer, path,
+                 is_arbiter: bool):
         """
         A Gluster brick
-        :param uuid: uuid.  Uuid of the host this brick is located on
+        :param brick_uuid: uuid.  Uuid of the host this brick is located on
         :param peer: Peer.  Optional information about the Peer this brick
           is located on.
         :param path: String.  The filesystem path the brick is located at
         :param is_arbiter:  bool.  Whether this brick is an arbiter or not
         """
-        self.uuid = uuid
+        self.uuid = brick_uuid
         self.peer = peer
         self.path = path
         self.is_arbiter = is_arbiter
@@ -312,11 +313,11 @@ def parse_volume_list(volume_xml: str) -> Result:
     if return_code != 0:
         return Err(err_string)
     volumes = tree.find('volList')
-    volume_list = []
+    parsed_volumes = []
     for vol in volumes:
         if vol.tag == 'volume':
-            volume_list.append(vol.text)
-    return Ok(volume_list)
+            parsed_volumes.append(vol.text)
+    return Ok(parsed_volumes)
 
 
 def parse_volume_info(volume_xml: str) -> Result:
@@ -399,13 +400,13 @@ def parse_volume_info(volume_xml: str) -> Result:
             elif vol_info.tag == 'bricks':
                 for brick in vol_info:
                     name = None
-                    uuid = None
+                    brick_uuid = None
                     is_arbiter = None
                     for brick_info in brick:
                         if brick_info.tag == 'name':
                             name = brick_info.text
                         elif brick_info.tag == 'hostUuid':
-                            uuid = brick_info.text
+                            brick_uuid = brick_info.text
                         elif brick_info.tag == 'isArbiter':
                             is_arbiter = brick_info.text
                     hostname = name.split(":")[0]
@@ -418,7 +419,7 @@ def parse_volume_info(volume_xml: str) -> Result:
                     peer = get_peer(hostname)
                     bricks.append(
                         Brick(
-                            uuid=uuid,
+                            brick_uuid=brick_uuid,
                             peer=peer,
                             path=path,
                             is_arbiter=is_arbiter))
@@ -496,7 +497,7 @@ def parse_quota_list(output_xml: str) -> Result:
     if return_code != 0:
         return Err(err_string)
 
-    quota_list = []
+    parsed_quotas = []
     limits = tree.findall('./volQuota/limit')
     for limit in limits:
         path = None
@@ -530,9 +531,9 @@ def parse_quota_list(output_xml: str) -> Result:
                       used=used_space, avail=avail_space,
                       soft_limit_exceeded=soft_limit_exceeded,
                       hard_limit_exceeded=hard_limit_exceeded)
-        quota_list.append(quota)
+        parsed_quotas.append(quota)
 
-    return Ok(quota_list)
+    return Ok(parsed_quotas)
 
 
 def volume_enable_bitrot(volume: str) -> Result:
@@ -565,7 +566,8 @@ def volume_set_bitrot_option(volume: str, setting: BitrotOption) -> Result:
     :return: 0 on success
     :raises: GlusterError if the command fails to run
     """
-    arg_list = ["volume", "bitrot", volume, setting, setting.value()]
+    arg_list = ["volume", "bitrot", volume, "{}".format(setting),
+                setting.option.value]
     return run_command("gluster", arg_list, True, True)
 
 
@@ -729,7 +731,7 @@ def parse_volume_status(output_xml: str) -> Result:
                 peer = Peer(uuid=peer_id, hostname=hostname, status=status)
                 # The is_arbiter field isn't known yet so we'll leave
                 # it as False
-                brick = Brick(uuid=peer_id, peer=peer, path=path,
+                brick = Brick(brick_uuid=peer_id, peer=peer, path=path,
                               is_arbiter=False)
                 # The online field isn't known yet so we'll leave it as False
                 brick_status = BrickStatus(brick=brick,
@@ -920,7 +922,7 @@ def vol_set(volume: str, option: GlusterOption) -> Result:
     :param option: GlusterOption
     :return: Result.  Return code and output of cmd
     """
-    arg_list = ["volume", "set", volume, option.name, option.value]
+    arg_list = ["volume", "set", volume, option.option, str(option.value)]
     return run_command("gluster", arg_list, True, True)
 
 

@@ -1,5 +1,5 @@
 import os
-from gluster.volume import Brick
+from .volume import Brick
 
 
 def get_self_heal_count(brick: Brick) -> int:

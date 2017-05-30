@@ -5,6 +5,12 @@ from io import TextIOBase
 
 # / Write the samba configuration file out to disk
 def render_samba_configuration(f: TextIOBase, volume_name: str) -> int:
+    """
+
+    :param f: 
+    :param volume_name: 
+    :return: 
+    """
     bytes_written = 0
     bytes_written += f.write("[}]\n".format(volume_name))
     bytes_written += f.write(b"path = /mnt/glusterfs\n")
@@ -21,6 +27,11 @@ def render_samba_configuration(f: TextIOBase, volume_name: str) -> int:
 
 
 def samba_config_changed(volume_name: str) -> bool:
+    """
+
+    :param volume_name: 
+    :return: 
+    """
     if os.path.exists("/etc/samba/smb.conf"):
         # Lets check if the smb.conf matches what we're going to write.
         # If so then it was already setup and there's nothing to do
@@ -38,6 +49,11 @@ def samba_config_changed(volume_name: str) -> bool:
 
 
 def setup_samba(volume_name: str):
+    """
+
+    :param volume_name: 
+    :return: 
+    """
     cifs_config = config["cifs"]
     if cifs_config is None:
         # Samba isn't enabled

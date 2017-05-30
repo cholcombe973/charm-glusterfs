@@ -12,12 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from lib.gluster import peer, volume
-# from ipaddress import ip_address
+import sys
+import unittest
+import uuid
+
 import mock
 from result import Ok
-import uuid
-import unittest
+
+from lib.gluster import peer, volume
+
+mock_apt = mock.MagicMock()
+sys.modules['apt'] = mock_apt
+mock_apt.apt_pkg = mock.MagicMock()
 
 peer_1 = peer.Peer(
     uuid=uuid.UUID("39bdbbd6-5271-4c23-b405-cc0b67741ebc"),
@@ -31,17 +37,17 @@ peer_3 = peer.Peer(
 
 brick_list = [
     volume.Brick(
-        uuid=uuid.UUID("12d4bd98-e102-4174-b99a-ef76f849474e"),
+        brick_uuid=uuid.UUID("12d4bd98-e102-4174-b99a-ef76f849474e"),
         peer=peer_1,
         path="/mnt/sdb",
         is_arbiter=False),
     volume.Brick(
-        uuid=uuid.UUID("a563d73c-ef3c-47c6-b50d-ddc800ef5dae"),
+        brick_uuid=uuid.UUID("a563d73c-ef3c-47c6-b50d-ddc800ef5dae"),
         peer=peer_2,
         path="/mnt/sdb",
         is_arbiter=False),
     volume.Brick(
-        uuid=uuid.UUID("cc4a3f0a-f152-4e40-ab01-598f53eb83f9"),
+        brick_uuid=uuid.UUID("cc4a3f0a-f152-4e40-ab01-598f53eb83f9"),
         peer=peer_3,
         path="/mnt/sdb", is_arbiter=False)
 ]
@@ -83,8 +89,8 @@ class Test(unittest.TestCase):
             lines = xml_output.readlines()
             result = volume.parse_volume_status("".join(lines))
             self.assertTrue(result.is_ok())
-            #for status_item in result.value:
-                #print("volume status item: {}".format(status_item))
+            # for status_item in result.value:
+            # print("volume status item: {}".format(status_item))
 
     def testVolumeAddBrick(self):
         pass
@@ -247,7 +253,7 @@ class Test(unittest.TestCase):
     def testVolSet(self, _run_command):
         volume.vol_set("test",
                        volume.GlusterOption(
-                           name=volume.GlusterOption.AuthAllow,
+                           option=volume.GlusterOption.AuthAllow,
                            value="*"))
         _run_command.assert_called_with("gluster",
                                         ["volume", "set", "test", "auth.allow",

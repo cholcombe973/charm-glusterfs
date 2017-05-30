@@ -5,6 +5,7 @@ import os.path
 def collect_metrics():
     """
     Gather metrics about gluster mount and log them to juju metrics
+    :rtype: object
     """
     p = os.path.join(os.sep, "mnt", "glusterfs")
     mount_stats = os.statvfs(p)

@@ -4,6 +4,11 @@ from result import Result
 
 #/ Ask apt-cache for the new candidate package that is available
 def get_candidate_package_version(package_name: str) -> Result:
+    """
+
+    :param package_name: 
+    :return: 
+    """
     output = check_output(["apt-cache", "policy", package_name])
     if not output.status.success():
         return Err(output.stderr)

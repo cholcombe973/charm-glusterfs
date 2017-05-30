@@ -25,7 +25,7 @@ class SelfHealAlgorithm(Enum):
     Reset = "reset"
 
     def __str__(self):
-        return "{}".format(self.value)
+        return self.value
 
     @staticmethod
     def from_str(s):
@@ -47,7 +47,7 @@ class SplitBrainPolicy(Enum):
     Size = "size"
 
     def __str__(self):
-        return "{}".format(self.value)
+        return self.value
 
     @staticmethod
     def from_str(s):
@@ -70,7 +70,7 @@ class AccessMode(Enum):
     ReadWrite = "read-write"
 
     def __str__(self):
-        return "{}".format(self.value)
+        return self.value
 
     @staticmethod
     def from_str(s):
@@ -87,17 +87,21 @@ class Toggle(Enum):
     Off = False
 
     def __str__(self):
-        return "{}".format(self.value)
+        if self.value:
+            return "On"
+        else:
+            return "Off"
 
     @staticmethod
     def from_str(s):
+        s = s.lower()
         if s == "on":
             return Toggle.On
         elif s == "off":
             return Toggle.Off
-        elif s == "True":
+        elif s == "true":
             return Toggle.On
-        elif s == "False":
+        elif s == "false":
             return Toggle.Off
         else:
             return None
@@ -109,9 +113,6 @@ class ScrubSchedule(Enum):
     Weekly = "weekly"
     BiWeekly = "biweekly"
     Monthly = "monthly"
-
-    def __str__(self):
-        return "{}".format(self.value)
 
     @staticmethod
     def from_str(s):
@@ -128,6 +129,9 @@ class ScrubSchedule(Enum):
         else:
             return None
 
+    def __str__(self):
+        return "scrub-frequency"
+
 
 class ScrubAggression(Enum):
     Aggressive = "aggressive"
@@ -135,7 +139,7 @@ class ScrubAggression(Enum):
     Normal = "normal"
 
     def __str__(self):
-        return "{}".format(self.value)
+        return "scrub-throttle"
 
     @staticmethod
     def from_str(s):
@@ -156,7 +160,7 @@ class ScrubControl(Enum):
     OnDemand = "ondemand"
 
     def __str__(self):
-        return "{}".format(self.value)
+        return "scrub"
 
     @staticmethod
     def from_str(s):
@@ -177,12 +181,11 @@ class BitrotOption(object):
     ScrubFrequency = ScrubSchedule
     Scrub = ScrubControl
 
-    def __init__(self, name, value):
-        self.name = name
-        self.value = value
+    def __init__(self, option):
+        self.option = option
 
     def __str__(self):
-        return "{}".format(self.value)
+        return "{}".format(self.option)
 
 
 class GlusterOption(object):
@@ -375,211 +378,210 @@ class GlusterOption(object):
     # brick(s). Defaults to 30 seconds, set to 0 to disable.
     StorageHealthCheckInterval = "storage.health-check-interval"
 
-    def __init__(self, name, value):
-        self.name = name
+    def __init__(self, option, value):
+        self.option = option
         self.value = value
-
-    def __str__(self):
-        return "{}".format(self.value)
 
     @staticmethod
     def from_str(s: str, value):
         if s == "auth-allow":
-            return GlusterOption(name=GlusterOption.AuthAllow, value=value)
+            return GlusterOption(option=GlusterOption.AuthAllow, value=value)
         elif s == "auth-reject":
-            return GlusterOption(name=GlusterOption.AuthReject, value=value)
+            return GlusterOption(option=GlusterOption.AuthReject, value=value)
         elif s == "auth.ssl-allow":
-            return GlusterOption(name=GlusterOption.SslAllow, value=value)
+            return GlusterOption(option=GlusterOption.SslAllow, value=value)
         elif s == "client.ssl":
             t = Toggle.from_str(value)
-            return GlusterOption(name=GlusterOption.ClientSsl, value=t)
+            return GlusterOption(option=GlusterOption.ClientSsl, value=t)
         elif s == "cluster.favorite-child-policy":
             policy = SplitBrainPolicy.from_str(value)
-            return GlusterOption(name=GlusterOption.FavoriteChildPolicy,
+            return GlusterOption(option=GlusterOption.FavoriteChildPolicy,
                                  value=policy)
         elif s == "client-grace-timeout":
             i = int(value)
-            return GlusterOption(name=GlusterOption.ClientGraceTimeout,
+            return GlusterOption(option=GlusterOption.ClientGraceTimeout,
                                  value=i)
         elif s == "cluster-self-heal-window-size":
             i = int(value)
-            return GlusterOption(name=GlusterOption.ClusterSelfHealWindowSize,
+            return GlusterOption(option=GlusterOption.ClusterSelfHealWindowSize,
                                  value=i)
         elif s == "cluster-data-self-heal-algorithm":
             s = SelfHealAlgorithm.from_str(value)
             return GlusterOption(
-                name=GlusterOption.ClusterDataSelfHealAlgorithm, value=s)
+                option=GlusterOption.ClusterDataSelfHealAlgorithm, value=s)
         elif s == "cluster-min-free-disk":
             i = int(value)
-            return GlusterOption(name=GlusterOption.ClusterMinFreeDisk,
+            return GlusterOption(option=GlusterOption.ClusterMinFreeDisk,
                                  value=i)
         elif s == "cluster-stripe-block-size":
             i = int(value)
-            return GlusterOption(name=GlusterOption.ClusterStripeBlockSize,
+            return GlusterOption(option=GlusterOption.ClusterStripeBlockSize,
                                  value=i)
         elif s == "cluster-self-heal-daemon":
             t = Toggle.from_str(value)
-            return GlusterOption(name=GlusterOption.ClusterSelfHealDaemon,
+            return GlusterOption(option=GlusterOption.ClusterSelfHealDaemon,
                                  value=t)
         elif s == "cluster-ensure-durability":
             t = Toggle.from_str(value)
-            return GlusterOption(name=GlusterOption.ClusterEnsureDurability,
+            return GlusterOption(option=GlusterOption.ClusterEnsureDurability,
                                  value=t)
         elif s == "diagnostics-brick-log-level":
-            return GlusterOption(name=GlusterOption.DiagnosticsBrickLogLevel,
-                                 value=value)
+            return GlusterOption(option=GlusterOption.DiagnosticsBrickLogLevel,
+                                 value="")
         elif s == "diagnostics-client-log-level":
-            return GlusterOption(name=GlusterOption.DiagnosticsClientLogLevel,
-                                 value=value)
+            return GlusterOption(option=GlusterOption.DiagnosticsClientLogLevel,
+                                 value="")
         elif s == "diagnostics-latency-measurement":
             t = Toggle.from_str(value)
             return GlusterOption(
-                name=GlusterOption.DiagnosticsLatencyMeasurement, value=t)
+                option=GlusterOption.DiagnosticsLatencyMeasurement, value=t)
         elif s == "diagnostics.count-fop-hits":
             t = Toggle.from_str(value)
-            return GlusterOption(name=GlusterOption.DiagnosticsCountFopHits,
+            return GlusterOption(option=GlusterOption.DiagnosticsCountFopHits,
                                  value=t)
         elif s == "diagnostics.stats-dump-interval":
             i = int(value)
             return GlusterOption(
-                name=GlusterOption.DiagnosticsStatsDumpInterval, value=i)
+                option=GlusterOption.DiagnosticsStatsDumpInterval, value=i)
         elif s == "diagnostics.fop-sample-buf-size":
             i = int(value)
             return GlusterOption(
-                name=GlusterOption.DiagnosticsFopSampleBufSize,
+                option=GlusterOption.DiagnosticsFopSampleBufSize,
                 value=i)
         elif s == "diagnostics.fop-sample-interval":
             i = int(value)
             return GlusterOption(
-                name=GlusterOption.DiagnosticsFopSampleInterval, value=i)
+                option=GlusterOption.DiagnosticsFopSampleInterval, value=i)
         elif s == "diagnostics.stats-dnscache-ttl-sec":
             i = int(value)
             return GlusterOption(
-                name=GlusterOption.DiagnosticsStatsDnscacheTtlSec, value=i)
+                option=GlusterOption.DiagnosticsStatsDnscacheTtlSec, value=i)
         elif s == "diagnostics-dump-fd-stats":
             t = Toggle.from_str(value)
-            return GlusterOption(name=GlusterOption.DiagnosticsDumpFdStats,
+            return GlusterOption(option=GlusterOption.DiagnosticsDumpFdStats,
                                  value=t)
         elif s == "features-read-only":
             t = Toggle.from_str(value)
-            return GlusterOption(name=GlusterOption.FeaturesReadOnly, value=t)
+            return GlusterOption(option=GlusterOption.FeaturesReadOnly, value=t)
         elif s == "features-lock-heal":
             t = Toggle.from_str(value)
-            return GlusterOption(name=GlusterOption.FeaturesLockHeal, value=t)
+            return GlusterOption(option=GlusterOption.FeaturesLockHeal, value=t)
         elif s == "features-quota-timeout":
             i = int(value)
-            return GlusterOption(name=GlusterOption.FeaturesQuotaTimeout,
+            return GlusterOption(option=GlusterOption.FeaturesQuotaTimeout,
                                  value=i)
         elif s == "geo-replication-indexing":
             t = Toggle.from_str(value)
-            return GlusterOption(name=GlusterOption.GeoReplicationIndexing,
+            return GlusterOption(option=GlusterOption.GeoReplicationIndexing,
                                  value=t)
         elif s == "network-frame-timeout":
             i = int(value)
-            return GlusterOption(name=GlusterOption.NetworkFrameTimeout,
+            return GlusterOption(option=GlusterOption.NetworkFrameTimeout,
                                  value=i)
         elif s == "nfs-enable-ino32":
             t = Toggle.from_str(value)
-            return GlusterOption(name=GlusterOption.NfsEnableIno32, value=t)
+            return GlusterOption(option=GlusterOption.NfsEnableIno32, value=t)
         elif s == "nfs-volume-access":
             s = AccessMode.from_str(value)
-            return GlusterOption(name=GlusterOption.NfsVolumeAccess, value=s)
+            return GlusterOption(option=GlusterOption.NfsVolumeAccess, value=s)
         elif s == "nfs-trusted-write":
             t = Toggle.from_str(value)
-            return GlusterOption(name=GlusterOption.NfsTrustedWrite, value=t)
+            return GlusterOption(option=GlusterOption.NfsTrustedWrite, value=t)
         elif s == "nfs-trusted-sync":
             t = Toggle.from_str(value)
-            return GlusterOption(name=GlusterOption.NfsTrustedSync, value=t)
+            return GlusterOption(option=GlusterOption.NfsTrustedSync, value=t)
         elif s == "nfs-export-dir":
-            return GlusterOption(name=GlusterOption.NfsExportDir, value=value)
+            return GlusterOption(option=GlusterOption.NfsExportDir, value=value)
         elif s == "nfs-export-volumes":
             t = Toggle.from_str(value)
-            return GlusterOption(name=GlusterOption.NfsExportVolumes, value=t)
+            return GlusterOption(option=GlusterOption.NfsExportVolumes, value=t)
         elif s == "nfs-rpc-auth-unix":
             t = Toggle.from_str(value)
-            return GlusterOption(name=GlusterOption.NfsRpcAuthUnix, value=t)
+            return GlusterOption(option=GlusterOption.NfsRpcAuthUnix, value=t)
         elif s == "nfs-rpc-auth-null":
             t = Toggle.from_str(value)
-            return GlusterOption(name=GlusterOption.NfsRpcAuthNull, value=t)
+            return GlusterOption(option=GlusterOption.NfsRpcAuthNull, value=t)
         elif s == "nfs-ports-insecure":
             t = Toggle.from_str(value)
-            return GlusterOption(name=GlusterOption.NfsPortsInsecure, value=t)
+            return GlusterOption(option=GlusterOption.NfsPortsInsecure, value=t)
         elif s == "nfs-addr-namelookup":
             t = Toggle.from_str(value)
-            return GlusterOption(name=GlusterOption.NfsAddrNamelookup, value=t)
+            return GlusterOption(option=GlusterOption.NfsAddrNamelookup,
+                                 value=t)
         elif s == "nfs-register-with-portmap":
             t = Toggle.from_str(value)
-            return GlusterOption(name=GlusterOption.NfsRegisterWithPortmap,
+            return GlusterOption(option=GlusterOption.NfsRegisterWithPortmap,
                                  value=t)
         elif s == "nfs-disable":
             t = Toggle.from_str(value)
-            return GlusterOption(name=GlusterOption.NfsDisable, value=t)
+            return GlusterOption(option=GlusterOption.NfsDisable, value=t)
         elif s == "performance-write-behind-window-size":
             i = int(value)
             return GlusterOption(
-                name=GlusterOption.PerformanceWriteBehindWindowSize, value=i)
+                option=GlusterOption.PerformanceWriteBehindWindowSize, value=i)
         elif s == "performance-io-thread-count":
             i = int(value)
-            return GlusterOption(name=GlusterOption.PerformanceIoThreadCount,
+            return GlusterOption(option=GlusterOption.PerformanceIoThreadCount,
                                  value=i)
         elif s == "performance-flush-behind":
             t = Toggle.from_str(value)
-            return GlusterOption(name=GlusterOption.PerformanceFlushBehind,
+            return GlusterOption(option=GlusterOption.PerformanceFlushBehind,
                                  value=t)
         elif s == "performance-cache-max-file-size":
             i = int(value)
             return GlusterOption(
-                name=GlusterOption.PerformanceCacheMaxFileSize,
+                option=GlusterOption.PerformanceCacheMaxFileSize,
                 value=i)
         elif s == "performance-cache-min-file-size":
             i = int(value)
             return GlusterOption(
-                name=GlusterOption.PerformanceCacheMinFileSize,
+                option=GlusterOption.PerformanceCacheMinFileSize,
                 value=i)
         elif s == "performance-cache-refresh-timeout":
             i = int(value)
             return GlusterOption(
-                name=GlusterOption.PerformanceCacheRefreshTimeout, value=i)
+                option=GlusterOption.PerformanceCacheRefreshTimeout, value=i)
         elif s == "performance-cache-size":
             i = int(value)
-            return GlusterOption(name=GlusterOption.PerformanceCacheSize,
+            return GlusterOption(option=GlusterOption.PerformanceCacheSize,
                                  value=i)
         elif s == "performance-readdir-ahead":
             t = Toggle.from_str(value)
-            return GlusterOption(name=GlusterOption.PerformanceReadDirAhead,
+            return GlusterOption(option=GlusterOption.PerformanceReadDirAhead,
                                  value=t)
         elif s == "performance-parallel-readdir":
             t = Toggle.from_str(value)
-            return GlusterOption(name=GlusterOption.PerformanceReadDirAhead,
+            return GlusterOption(option=GlusterOption.PerformanceReadDirAhead,
                                  value=t)
         elif s == "performance-readdir-cache-limit":
             i = int(value)
             return GlusterOption(
-                name=GlusterOption.PerformanceReadDirAheadCacheLimit, value=i)
+                option=GlusterOption.PerformanceReadDirAheadCacheLimit, value=i)
         elif s == "server.ssl":
             t = Toggle.from_str(value)
-            return GlusterOption(name=GlusterOption.ServerSsl, value=t)
+            return GlusterOption(option=GlusterOption.ServerSsl, value=t)
         elif s == "server-allow-insecure":
             t = Toggle.from_str(value)
-            return GlusterOption(name=GlusterOption.ServerAllowInsecure,
+            return GlusterOption(option=GlusterOption.ServerAllowInsecure,
                                  value=t)
         elif s == "server-grace-timeout":
             i = int(value)
-            return GlusterOption(name=GlusterOption.ServerGraceTimeout,
+            return GlusterOption(option=GlusterOption.ServerGraceTimeout,
                                  value=i)
         elif s == "server-statedump-path":
-            return GlusterOption(name=GlusterOption.ServerStatedumpPath,
+            return GlusterOption(option=GlusterOption.ServerStatedumpPath,
                                  value=value)
         elif s == "ssl.certificate-depth":
             i = int(value)
-            return GlusterOption(name=GlusterOption.SslCertificateDepth,
+            return GlusterOption(option=GlusterOption.SslCertificateDepth,
                                  value=i)
         elif s == "ssl.cipher-list":
             return GlusterOption(GlusterOption.SslCipherList, value=value)
         elif s == "storage-health-check-interval":
             i = int(value)
-            return GlusterOption(name=GlusterOption.StorageHealthCheckInterval,
-                                 value=i)
+            return GlusterOption(
+                option=GlusterOption.StorageHealthCheckInterval,
+                value=i)
         else:
             return None
 
