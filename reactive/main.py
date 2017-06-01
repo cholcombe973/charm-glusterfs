@@ -1,3 +1,4 @@
+import apt_pkg
 import itertools
 import os
 import time
@@ -745,21 +746,26 @@ def check_for_upgrade() -> Result:
     apt_update()
 
     log("Getting proposed_version")
+    apt_pkg.init_system()
     proposed_version = get_candidate_package_version("glusterfs-server")
+    if proposed_version.is_err():
+        return Err(proposed_version.value)
+    version_compare = apt_pkg.version_compare(a=proposed_version.value,
+                                              b=current_version)
 
     # Using semantic versioning if the new version is greater
     # than we allow the upgrade
-    if proposed_version > current_version:
-        log("current_version: {".format(current_version))
-        log("new_version: {".format(proposed_version))
+    if version_compare > 0:
+        log("current_version: {}".format(current_version))
+        log("new_version: {}".format(proposed_version.value))
         log("{} to {} is a valid upgrade path.  Proceeding.".format(
-            current_version, proposed_version))
-        return roll_cluster(proposed_version)
+            current_version, proposed_version.value))
+        return roll_cluster(proposed_version.value)
     else:
         # Log a helpful error message
         log("Invalid upgrade path from {} to {}. The new version needs to be \
                             greater than the old version".format(
-            current_version, proposed_version), ERROR)
+            current_version, proposed_version.value), ERROR)
         return Ok(())
 
 
