@@ -1,28 +1,18 @@
-from typing import List
-from charmhelpers.fetch import apt_install
-from result import Result
+import apt
+from result import Err, Ok, Result
 
-#/ Ask apt-cache for the new candidate package that is available
+
 def get_candidate_package_version(package_name: str) -> Result:
     """
-
-    :param package_name: 
-    :return: 
+    Ask apt-cache for the new candidate package that is available
+    :param package_name: The package to check for an upgrade
+    :return: Ok with the new candidate version or Err in case the candidate
+        was not found
     """
-    output = check_output(["apt-cache", "policy", package_name])
-    if not output.status.success():
-        return Err(output.stderr)
-
-    stdout = output.stdout
-    for line in stdout:
-        if line.contains("Candidate"):
-            parts = line.split(' ')
-            match parts.last()
-                Some(p) =>
-                    version: Version = Version::parse(p).map_err(|e| e.msg)
-                    return Ok(version)
-
-                None =>
-                    return Err("Unknown candidate line format: {}".format(parts))
-    "Unable to find candidate upgrade package from stdout: {}".format(stdout)
-
+    cache = apt.Cache()
+    try:
+        version = cache[package_name].candidate.version
+        return Ok(version)
+    except KeyError:
+        return Err("Unable to find candidate upgrade package for: {}".format(
+            package_name))

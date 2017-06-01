@@ -34,6 +34,7 @@ from .block import BrickDevice, Btrfs, Ext4, format_block_device, \
     get_device_info, MetadataProfile, mount_device, set_elevator, Scheduler, \
     weekly_defrag, \
     Xfs, Zfs
+from .apt import get_candidate_package_version
 from .brick_detached import brick_detached
 from .fstab import FsTab, FsEntry
 from .fuse_relation_joined import fuse_relation_joined
@@ -688,9 +689,8 @@ def start_gluster_volume(volume_name: str) -> Result:
             volume_set_options(volume_name, settings)
 
         # The has a default.  Should be safe
-        bitrot_config = config["bitrot_detection"]
-        bitrot_detection = serde_yaml.from_str(bitrot_config)
-        if bitrot_detection:
+        bitrot_config = bool(config["bitrot_detection"])
+        if bitrot_config:
             log("Enabling bitrot detection")
             status_set(workload_state="active",
                        message="Enabling bitrot detection.")
@@ -745,7 +745,7 @@ def check_for_upgrade() -> Result:
     apt_update()
 
     log("Getting proposed_version")
-    proposed_version = apt.get_candidate_package_version("glusterfs-server")
+    proposed_version = get_candidate_package_version("glusterfs-server")
 
     # Using semantic versioning if the new version is greater
     # than we allow the upgrade
