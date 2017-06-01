@@ -1,19 +1,20 @@
-from enum import Enum
-from ipaddress import ip_address
-from result import Err, Ok, Result
-from typing import Dict, List
 import uuid
 import xml.etree.ElementTree as etree
+from enum import Enum
+from ipaddress import ip_address
+from typing import Dict, List, Optional
 
-from .peer import get_peer
-from .peer import Peer
+from result import Err, Ok, Result
+
 from .lib import BitrotOption, get_local_ip, GlusterError, \
     GlusterOption, resolve_to_ip, run_command
+from .peer import Peer
+from .peer import get_peer
 
 
 # A Gluster Brick consists of a Peer and a path to the mount point
 class Brick(object):
-    def __init__(self, brick_uuid: uuid.UUID, peer: Peer, path,
+    def __init__(self, brick_uuid: Optional[uuid.UUID], peer: Peer, path,
                  is_arbiter: bool):
         """
         A Gluster brick
@@ -31,6 +32,12 @@ class Brick(object):
     # Returns a String representation of the selected enum variant.
     def __str__(self):
         return "{}:{}".format(self.peer.hostname, self.path)
+
+    def __eq__(self, other):
+        return self.uuid == other.uuid \
+               and self.peer == other.peer \
+               and self.path == other.path \
+               and self.is_arbiter == other.is_arbiter
 
 
 class Quota(object):

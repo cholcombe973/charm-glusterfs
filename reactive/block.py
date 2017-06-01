@@ -107,6 +107,19 @@ class BrickDevice:
         self.mount_path = mount_path
         self.dev_path = dev_path
 
+    def __eq__(self, other):
+        return self.is_block_device == other.is_block_device \
+               and self.initialized == other.initialized \
+               and self.mount_path == other.mount_path \
+               and self.dev_path == other.dev_path
+
+    def __str__(self):
+        return "is block device: {} initialized: {} " \
+               "mount path : {} dev path: {}".format(self.is_block_device,
+                                                     self.initialized,
+                                                     self.mount_path,
+                                                     self.dev_path)
+
 
 class AsyncInit:
     def __init__(self, format_child: subprocess.Popen,

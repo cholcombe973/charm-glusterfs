@@ -1,7 +1,6 @@
 import itertools
 import os
 import time
-import uuid
 from enum import Enum
 from typing import List, Optional
 
@@ -149,8 +148,8 @@ def brick_and_server_cartesian_product(peers: List[Peer], paths: List[str]) -> \
         List[Brick]:
     """
 
-    :param peers:
-    :param paths:
+    :param peers: A list of peers to match up against brick paths
+    :param paths: A list of brick mount paths to match up against peers
     :return:
     """
     product = []  # : Vec<gluster.volume.Brick> = []
@@ -158,7 +157,7 @@ def brick_and_server_cartesian_product(peers: List[Peer], paths: List[str]) -> \
                            peers)  # .iter().cartesian_product(peers.iter())
     for path, host in it:
         brick = Brick(peer=host, path=path, is_arbiter=False,
-                      brick_uuid=uuid.uuid4())
+                      brick_uuid=None)
         product.append(brick)
     return product
 
@@ -648,22 +647,30 @@ def start_gluster_volume(volume_name: str) -> Result:
         settings = [
             # Starting in gluster 3.8 NFS is disabled in favor of ganesha.
             # I'd like to stick with the legacy version a bit longer.
-            GlusterOption.NfsDisable(Toggle.Off),
-            GlusterOption.DiagnosticsLatencyMeasurement(Toggle.On),
-            GlusterOption.DiagnosticsCountFopHits(Toggle.On),
+            GlusterOption(option=GlusterOption.NfsDisable, value=Toggle.Off),
+            GlusterOption(option=GlusterOption.DiagnosticsLatencyMeasurement,
+                          value=Toggle.On),
+            GlusterOption(option=GlusterOption.DiagnosticsCountFopHits,
+                          value=Toggle.On),
             # Dump FOP stats every 5 seconds.
             # NOTE: On slow main drives this can severely impact them
-            GlusterOption.DiagnosticsFopSampleInterval(5),
-            GlusterOption.DiagnosticsStatsDumpInterval(30),
+            GlusterOption(option=GlusterOption.DiagnosticsFopSampleInterval,
+                          value=5),
+            GlusterOption(option=GlusterOption.DiagnosticsStatsDumpInterval,
+                          value=30),
             # 1HR DNS timeout
-            GlusterOption.DiagnosticsStatsDnscacheTtlSec(3600),
+            GlusterOption(option=GlusterOption.DiagnosticsStatsDnscacheTtlSec,
+                          value=3600),
             # Set parallel-readdir on.  This has a very nice performance
             # benefit as the number of bricks/directories grows
-            GlusterOption.PerformanceParallelReadDir(Toggle.On),
-            GlusterOption.PerformanceReadDirAhead(Toggle.On),
+            GlusterOption(option=GlusterOption.PerformanceParallelReadDir,
+                          value=Toggle.On),
+            GlusterOption(option=GlusterOption.PerformanceReadDirAhead,
+                          value=Toggle.On),
             # Start with 20MB and go from there
-            GlusterOption.PerformanceReadDirAheadCacheLimit(
-                1024 * 1024 * 20)]
+            GlusterOption(
+                option=GlusterOption.PerformanceReadDirAheadCacheLimit,
+                value=1024 * 1024 * 20)]
 
         # Set the split brain policy if requested
         splitbrain_policy = config["splitbrain_policy"]
@@ -671,7 +678,9 @@ def start_gluster_volume(volume_name: str) -> Result:
             # config.yaml has a default here.  Should always have a value
             try:
                 policy = SplitBrainPolicy(splitbrain_policy)
-                settings.append(GlusterOption.FavoriteChildPolicy(policy))
+                settings.append(
+                    GlusterOption(option=GlusterOption.FavoriteChildPolicy,
+                                  value=policy))
             except ValueError:
                 log("Failed to parse splitbrain_policy config setting: \
                                         {}.".format(splitbrain_policy), ERROR)
@@ -848,7 +857,6 @@ def find_new_peers(peers: List[Peer], volume_info: Volume) -> List[Peer]:
         # If this peer is already in the volume, skip it
         existing_peer = any(brick.peer.uuid == peer.uuid for brick in
                             volume_info.bricks)
-        # volume_info.bricks.iter().any(|brick| brick.peer.uuid == peer.uuid)
         if not existing_peer:
             new_peers.append(peer)
     return new_peers
@@ -1053,6 +1061,28 @@ def mount_cluster(volume_name: str) -> Result:
         else:
             return Err(output.value)
     return Ok(())
+
+
+def get_glusterfs_version() -> Result:
+    """
+
+    :return:
+    """
+    cmd = ["-s", "glusterfs-server"]
+    output = run_command("dpkg", cmd, True, False)
+    if output.is_ok():
+        for line in output.value:
+            if line.startswith("Version"):
+                # return the version
+                parts = line.split(" ")
+                if len(parts) is 2:
+                    return Ok(parts[1])
+                else:
+                    return Err(
+                        "apt-cache Version string is invalid: {}".format(line))
+    else:
+        return Err(output)
+    return Err("Unable to find glusterfs-server version")
 
 
 # Update the juju status information

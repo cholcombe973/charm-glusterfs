@@ -53,12 +53,21 @@ class Test(unittest.TestCase):
 
     @mock.patch('reactive.block.is_block_device')
     @mock.patch('reactive.block.device_initialized')
-    def testScanDevices(self, _is_block_device, _device_initialized):
+    @mock.patch('reactive.block.log')
+    def testScanDevices(self, _log, _is_block_device, _device_initialized):
+        expected = [
+            block.BrickDevice(is_block_device=True, initialized=True,
+                              mount_path="/mnt/sda", dev_path="/dev/sda"),
+            block.BrickDevice(is_block_device=True, initialized=True,
+                              mount_path="/mnt/sdb", dev_path="/dev/sdb"),
+            block.BrickDevice(is_block_device=True, initialized=True,
+                              mount_path="/mnt/sdc", dev_path="/dev/sdc")
+        ]
         _is_block_device.return_value = Ok(True)
         _device_initialized.return_value = Ok(True)
-        # result = block.scan_devices(["/dev/sda", "/dev/sdb", "/dev/sdc"])
-        # self.assertTrue(result.is_ok())
-        # print("scan_devices: {}".format(result.value))
+        result = block.scan_devices(["/dev/sda", "/dev/sdb", "/dev/sdc"])
+        self.assertTrue(result.is_ok())
+        self.assertListEqual(expected, result.value)
 
         # @mock.patch('reactive.block.log')
         # def testWeeklyDefrag(self, _log):
