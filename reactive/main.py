@@ -8,7 +8,7 @@ from typing import List, Optional
 from charms.reactive import when, when_not, when_file_changed, set_state
 from charmhelpers.contrib.storage.linux.ceph import filesystem_mounted
 from charmhelpers.core import hookenv, sysctl
-from charmhelpers.core.hookenv import Hooks, relation_get, \
+from charmhelpers.core.hookenv import relation_get, \
     application_version_set, relation_id
 from charmhelpers.core.hookenv import config, ERROR, INFO, is_leader, \
     log, related_units, relation_set, status_set
@@ -27,21 +27,17 @@ from lib.gluster.volume import Brick, Transport, volume_create_arbiter, \
     volume_create_replicated, volume_create_striped_replicated, \
     volume_add_brick, volume_create_erasure, volume_info, VolumeType, \
     volume_enable_bitrot, volume_start, volume_set_options, volume_remove_brick
-from .actions import disable_bitrot_scan, disable_volume_quota, \
-    list_volume_quotas, set_bitrot_scan_frequency, set_bitrot_throttle, \
-    pause_bitrot_scan, resume_bitrot_scan, \
-    set_volume_options, enable_bitrot_scan, enable_volume_quota
 from .block import BrickDevice, Btrfs, Ext4, format_block_device, \
     FilesystemType, get_juju_bricks, get_manual_bricks, \
     get_device_info, MetadataProfile, mount_device, set_elevator, Scheduler, \
     weekly_defrag, \
     Xfs, Zfs
 from .apt import get_candidate_package_version
-from .brick_detached import brick_detached
+# from .brick_detached import brick_detached
 from .fstab import FsTab, FsEntry
-from .fuse_relation_joined import fuse_relation_joined
-from .metrics import collect_metrics
-from .server_removed import server_removed
+# from .fuse_relation_joined import fuse_relation_joined
+# from .metrics import collect_metrics
+# from .server_removed import server_removed
 from .upgrade import roll_cluster
 
 
@@ -175,12 +171,12 @@ def brick_and_server_cartesian_product(peers: List[Peer], paths: List[str]) -> \
     return product
 
 
+@when_not("volume.started")
 def server_changed() -> Result:
     """
 
     :return:
     """
-    # context = juju.Context.new_from_env()
     volume_name = config["volume_name"]
 
     if is_leader():
@@ -216,7 +212,7 @@ def server_changed() -> Result:
                 # Poke the other peers to update their status
                 relation_set("expanded", "True")
                 # Ensure the cluster is mounted
-                mount_cluster(volume_name)
+                # mount_cluster(volume_name)
                 # setup_ctdb()
                 # setup_samba(volume_name)
                 return Ok(())
@@ -232,26 +228,26 @@ def server_changed() -> Result:
             status_set(workload_state="maintenance",
                        message="Creating volume {}".format(volume_name))
             create_gluster_volume(volume_name, peers.value)
-            mount_cluster(volume_name)
+            # mount_cluster(volume_name)
             # setup_ctdb()
             # setup_samba(volume_name)
         return Ok(())
-    #else:
-    #    # Non leader units
-    #    vol_started = relation_get("started")
-    #    if vol_started is not None:
-    #        mount_cluster(volume_name)
-    # Setup ctdb and samba after the volume comes up on non leader units
-    #        # setup_ctdb()
-    #        # setup_samba(volume_name)
-    #    return Ok(())
+        # else:
+        #    # Non leader units
+        #    vol_started = relation_get("started")
+        #    if vol_started is not None:
+        #        mount_cluster(volume_name)
+        # Setup ctdb and samba after the volume comes up on non leader units
+        #        # setup_ctdb()
+        #        # setup_samba(volume_name)
+        #    return Ok(())
 
 
 def create_gluster_volume(volume_name: str, peers: List[Peer]) -> Result:
     """
-
-    :param volume_name:
-    :param peers:
+    Create a new gluster volume with a name and a list of peers
+    :param volume_name: str.  Name of the volume to create
+    :param peers: List[Peer].  List of the peers to use in this volume
     :return:
     """
     create_vol = create_volume(peers, None)
@@ -644,6 +640,69 @@ def shrink_volume(peer: Peer, vol_info: Optional[Volume]):
                 brick_list.value))
 
 
+@when('glusterfs.mounted')
+@when_not("volume-options.set")
+def set_volume_options():
+    """
+    Set any options needed on the volume.
+    :return:
+    """
+    status_set(workload_state="maintenance", message="Setting volume options")
+    volume_name = config['volume_name']
+    settings = [
+        # Starting in gluster 3.8 NFS is disabled in favor of ganesha.
+        # I'd like to stick with the legacy version a bit longer.
+        GlusterOption(option=GlusterOption.NfsDisable, value=Toggle.Off),
+        GlusterOption(option=GlusterOption.DiagnosticsLatencyMeasurement,
+                      value=Toggle.On),
+        GlusterOption(option=GlusterOption.DiagnosticsCountFopHits,
+                      value=Toggle.On),
+        # Dump FOP stats every 5 seconds.
+        # NOTE: On slow main drives this can severely impact them
+        GlusterOption(option=GlusterOption.DiagnosticsFopSampleInterval,
+                      value=5),
+        GlusterOption(option=GlusterOption.DiagnosticsStatsDumpInterval,
+                      value=30),
+        # 1HR DNS timeout
+        GlusterOption(option=GlusterOption.DiagnosticsStatsDnscacheTtlSec,
+                      value=3600),
+        # Set parallel-readdir on.  This has a very nice performance
+        # benefit as the number of bricks/directories grows
+        GlusterOption(option=GlusterOption.PerformanceParallelReadDir,
+                      value=Toggle.On),
+        GlusterOption(option=GlusterOption.PerformanceReadDirAhead,
+                      value=Toggle.On),
+        # Start with 20MB and go from there
+        GlusterOption(
+            option=GlusterOption.PerformanceReadDirAheadCacheLimit,
+            value=1024 * 1024 * 20)]
+
+    # Set the split brain policy if requested
+    splitbrain_policy = config["splitbrain_policy"]
+    if splitbrain_policy is not None:
+        # config.yaml has a default here.  Should always have a value
+        try:
+            policy = SplitBrainPolicy(splitbrain_policy)
+            settings.append(
+                GlusterOption(option=GlusterOption.FavoriteChildPolicy,
+                              value=policy))
+        except ValueError:
+            log("Failed to parse splitbrain_policy config setting: \
+                                          {}.".format(splitbrain_policy), ERROR)
+    else:
+        volume_set_options(volume_name, settings)
+
+    # The has a default.  Should be safe
+    bitrot_config = bool(config["bitrot_detection"])
+    if bitrot_config:
+        log("Enabling bitrot detection")
+        status_set(workload_state="active",
+                   message="Enabling bitrot detection.")
+        _ = volume_enable_bitrot(volume_name)
+    # Tell reactive we're all set here
+    set_state("volume-options.set")
+
+
 def start_gluster_volume(volume_name: str) -> Result:
     """
 
@@ -655,58 +714,6 @@ def start_gluster_volume(volume_name: str) -> Result:
         log("Starting volume succeeded.", INFO)
         status_set(workload_state="active",
                    message="Starting volume succeeded.")
-
-        mount_cluster(volume_name)
-        settings = [
-            # Starting in gluster 3.8 NFS is disabled in favor of ganesha.
-            # I'd like to stick with the legacy version a bit longer.
-            GlusterOption(option=GlusterOption.NfsDisable, value=Toggle.Off),
-            GlusterOption(option=GlusterOption.DiagnosticsLatencyMeasurement,
-                          value=Toggle.On),
-            GlusterOption(option=GlusterOption.DiagnosticsCountFopHits,
-                          value=Toggle.On),
-            # Dump FOP stats every 5 seconds.
-            # NOTE: On slow main drives this can severely impact them
-            GlusterOption(option=GlusterOption.DiagnosticsFopSampleInterval,
-                          value=5),
-            GlusterOption(option=GlusterOption.DiagnosticsStatsDumpInterval,
-                          value=30),
-            # 1HR DNS timeout
-            GlusterOption(option=GlusterOption.DiagnosticsStatsDnscacheTtlSec,
-                          value=3600),
-            # Set parallel-readdir on.  This has a very nice performance
-            # benefit as the number of bricks/directories grows
-            GlusterOption(option=GlusterOption.PerformanceParallelReadDir,
-                          value=Toggle.On),
-            GlusterOption(option=GlusterOption.PerformanceReadDirAhead,
-                          value=Toggle.On),
-            # Start with 20MB and go from there
-            GlusterOption(
-                option=GlusterOption.PerformanceReadDirAheadCacheLimit,
-                value=1024 * 1024 * 20)]
-
-        # Set the split brain policy if requested
-        splitbrain_policy = config["splitbrain_policy"]
-        if splitbrain_policy is not None:
-            # config.yaml has a default here.  Should always have a value
-            try:
-                policy = SplitBrainPolicy(splitbrain_policy)
-                settings.append(
-                    GlusterOption(option=GlusterOption.FavoriteChildPolicy,
-                                  value=policy))
-            except ValueError:
-                log("Failed to parse splitbrain_policy config setting: \
-                                        {}.".format(splitbrain_policy), ERROR)
-        else:
-            volume_set_options(volume_name, settings)
-
-        # The has a default.  Should be safe
-        bitrot_config = bool(config["bitrot_detection"])
-        if bitrot_config:
-            log("Enabling bitrot detection")
-            status_set(workload_state="active",
-                       message="Enabling bitrot detection.")
-            _ = volume_enable_bitrot(volume_name)
         return Ok(())
     else:
         log("Start volume failed with output: {}".format(
@@ -1057,13 +1064,14 @@ def resolve_first_vip_to_dns() -> Result:
 
 
 @when('volume.started')
-def mount_cluster(volume_name: str) -> Result:
+@when_not('glusterfs.mounted')
+def mount_cluster() -> Result:
     """
     Mount the cluster at /mnt/glusterfs using fuse
 
-    :param volume_name: 
-    :return: 
+    :return: Result.  Ok or Err depending on the outcome of mount
     """
+    volume_name = config['volume_name']
     if not os.path.exists("/mnt/glusterfs"):
         os.makedirs("/mnt/glusterfs")
     if not filesystem_mounted("/mnt/glusterfs"):
@@ -1073,6 +1081,7 @@ def mount_cluster(volume_name: str) -> Result:
         if output.is_ok():
             log("Removing /mnt/glusterfs from updatedb", INFO)
             add_to_updatedb_prunepath("/mnt/glusterfs")
+            set_state("glusterfs.mounted")
             return Ok(())
         else:
             return Err(output.value)
@@ -1081,8 +1090,8 @@ def mount_cluster(volume_name: str) -> Result:
 
 def get_glusterfs_version() -> Result:
     """
-
-    :return:
+    Get the current glusterfs version that is installed
+    :return: Result.  Ok(str) or Err(str)
     """
     cmd = ["-s", "glusterfs-server"]
     output = run_command("dpkg", cmd, True, False)
@@ -1101,9 +1110,9 @@ def get_glusterfs_version() -> Result:
     return Err("Unable to find glusterfs-server version")
 
 
-# Update the juju status information
 def update_status() -> Result:
     """
+    Update the juju status information
 
     :return: 
     """
@@ -1116,39 +1125,8 @@ def update_status() -> Result:
         status_set(workload_state="active",
                    message="Unit is ready ({} bricks)".format(
                        len(local_bricks.value)))
-        # Ensure the cluster is mounted
-        mount_cluster(volume_name)
         return Ok(())
     else:
         status_set(workload_state="blocked",
                    message="No bricks found")
         return Ok(())
-
-
-"""
-def main():
-    \"""
-    Register our hooks with the Juju library
-    \"""
-    hooks = Hooks()
-    hooks.register("brick-storage-detaching", brick_detached)
-    hooks.register("collect-metrics", collect_metrics)
-    hooks.register("config-changed", config_changed)
-    hooks.register("create-volume-quota", enable_volume_quota)
-    hooks.register("delete-volume-quota", disable_volume_quota)
-    hooks.register("disable-bitrot-scan", disable_bitrot_scan)
-    hooks.register("enable-bitrot-scan", enable_bitrot_scan)
-    hooks.register("fuse-relation-joined", fuse_relation_joined)
-    hooks.register("list-volume-quotas", list_volume_quotas)
-    # hooks.register("nfs-relation-joined", nfs_relation_joined)
-    hooks.register("pause-bitrot-scan", pause_bitrot_scan)
-    hooks.register("resume-bitrot-scan", resume_bitrot_scan)
-    hooks.register("server-relation-changed", server_changed)
-    hooks.register("server-relation-departed", server_removed)
-    hooks.register("set-bitrot-scan-frequency", set_bitrot_scan_frequency)
-    hooks.register("set-bitrot-throttle", set_bitrot_throttle)
-    hooks.register("set-volume-options", set_volume_options)
-    hooks.register("update-status", update_status)
-
-    update_status()
-"""
