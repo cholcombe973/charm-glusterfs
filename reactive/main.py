@@ -5,6 +5,7 @@ import time
 from enum import Enum
 from typing import List, Optional
 
+from charms.reactive import when, when_not, when_file_changed, set_state
 from charmhelpers.contrib.storage.linux.ceph import filesystem_mounted
 from charmhelpers.core import hookenv, sysctl
 from charmhelpers.core.hookenv import Hooks, relation_get, \
@@ -13,7 +14,7 @@ from charmhelpers.core.hookenv import config, ERROR, INFO, is_leader, \
     log, related_units, relation_set, status_set
 from charmhelpers.core.host import add_to_updatedb_prunepath, umount
 from charmhelpers.core.unitdata import kv
-from charmhelpers.fetch import apt_update, add_source
+from charmhelpers.fetch import apt_update, add_source, apt_install
 from result import Err, Ok, Result
 
 from lib.gluster.lib import GlusterOption, SplitBrainPolicy, Toggle, run_command
@@ -75,6 +76,17 @@ def get_cluster_networks() -> Result: # -> Result<Vec<ctdb.VirtualIp>, str>:
 """
 
 
+@when_not('gluster.installed')
+def install():
+    add_source(config('source'), config('key'))
+    apt_update(fatal=True)
+    apt_install(
+        packages=["ctdb", "nfs-common", "glusterfs-server", "glusterfs-common",
+                  "glusterfs-client"], fatal=True)
+    set_state("gluster.installed")
+
+
+@when_file_changed('config.yaml')
 def config_changed() -> Result:
     """
 
@@ -98,7 +110,6 @@ def check_for_new_devices() -> Result:
     :return:
     """
     log("Checking for new devices", INFO)
-    config = hookenv.config()
     log("Checking for ephemeral unmount")
     ephemeral_unmount()
     # if config.changed("brick_devices"))
@@ -115,7 +126,7 @@ def check_for_new_devices() -> Result:
         return Err(juju_config_brick_devices.value)
     brick_devices.extend(juju_config_brick_devices.value)
 
-    log("storage devices: {".format(brick_devices))
+    log("storage devices: {}".format(brick_devices))
 
     format_handles = []
     brick_paths = []
@@ -128,7 +139,7 @@ def check_for_new_devices() -> Result:
         else:
             # The device is already initialized, lets add it to our
             # usable paths list
-            log("{ is already initialized".format(device.dev_path))
+            log("{} is already initialized".format(device.dev_path))
             brick_paths.append(device.mount_path)
     # Wait for all children to finish formatting their drives
     for handle in format_handles:
@@ -225,15 +236,15 @@ def server_changed() -> Result:
             # setup_ctdb()
             # setup_samba(volume_name)
         return Ok(())
-    else:
-        # Non leader units
-        vol_started = relation_get("started")
-        if vol_started is not None:
-            mount_cluster(volume_name)
-            # Setup ctdb and samba after the volume comes up on non leader units
-            # setup_ctdb()
-            # setup_samba(volume_name)
-        return Ok(())
+    #else:
+    #    # Non leader units
+    #    vol_started = relation_get("started")
+    #    if vol_started is not None:
+    #        mount_cluster(volume_name)
+    # Setup ctdb and samba after the volume comes up on non leader units
+    #        # setup_ctdb()
+    #        # setup_samba(volume_name)
+    #    return Ok(())
 
 
 def create_gluster_volume(volume_name: str, peers: List[Peer]) -> Result:
@@ -720,9 +731,9 @@ def check_for_sysctl() -> Result:
     return Ok(())
 
 
-# If the config has changed this will initiated a rolling upgrade
 def check_for_upgrade() -> Result:
     """
+    If the config has changed this will initiated a rolling upgrade
 
     :return:
     """
@@ -805,26 +816,24 @@ def wait_for_peers() -> Result:
     return Ok(())
 
 
-# Probe in a unit if they haven't joined yet
-# This function is confusing because Gluster has weird behavior.
-# 1. If you probe in units by their IP address it works.
-# The CLI will show you their resolved
-# hostnames however
-# 2. If you probe in units by their hostname instead it'll still work
-# but gluster client mount
-# commands will fail if it can not resolve the hostname.
-# For example: Probing in containers by hostname will cause the glusterfs
-# client to fail to mount on the container host.  :(
-# 3. To get around this I'm converting hostnames to ip addresses in the
-# gluster library to mask this from the callers.
-#
-def probe_in_units(existing_peers: List[Peer],
-                   related_units: List) -> Result:
+def probe_in_units(existing_peers: List[Peer], related_units: List) -> Result:
     """
-
-    :param existing_peers: 
-    :param related_units: 
-    :return: 
+    Probe in a unit if they haven't joined yet
+    This function is confusing because Gluster has weird behavior.
+    1. If you probe in units by their IP address it works.
+    The CLI will show you their resolved
+    hostnames however
+    2. If you probe in units by their hostname instead it'll still work
+    but gluster client mount
+    commands will fail if it can not resolve the hostname.
+    For example: Probing in containers by hostname will cause the glusterfs
+    client to fail to mount on the container host.  :(
+    3. To get around this I'm converting hostnames to ip addresses in the
+    gluster library to mask this from the callers.
+    #
+    :param existing_peers:
+    :param related_units:
+    :return:
     """
     log("Adding in related_units: {}".format(related_units))
     for unit in related_units:
@@ -940,10 +949,10 @@ def finish_initialization(device_path: os.path) -> Result:
     return Ok(())
 
 
-# Format and mount block devices to ready them for consumption by Gluster
-# Return an Initialization struct
 def initialize_storage(device: BrickDevice) -> Result:
     """
+    Format and mount block devices to ready them for consumption by Gluster
+    Return an Initialization struct
 
     :param device: 
     :return: 
@@ -1047,9 +1056,10 @@ def resolve_first_vip_to_dns() -> Result:
 """
 
 
-# Mount the cluster at /mnt/glusterfs using fuse
+@when('volume.started')
 def mount_cluster(volume_name: str) -> Result:
     """
+    Mount the cluster at /mnt/glusterfs using fuse
 
     :param volume_name: 
     :return: 
@@ -1115,11 +1125,11 @@ def update_status() -> Result:
         return Ok(())
 
 
+"""
 def main():
-    """
+    \"""
     Register our hooks with the Juju library
-
-    """
+    \"""
     hooks = Hooks()
     hooks.register("brick-storage-detaching", brick_detached)
     hooks.register("collect-metrics", collect_metrics)
@@ -1141,9 +1151,4 @@ def main():
     hooks.register("update-status", update_status)
 
     update_status()
-
-
-if __name__ == "__main__":
-    main()
-    # execute a hook based on the name the program is called by
-    # hooks.execute(sys.argv)
+"""

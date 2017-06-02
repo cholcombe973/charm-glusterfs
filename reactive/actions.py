@@ -1,5 +1,22 @@
 #!/usr/bin/python3
+# Copyright 2016 Canonical Ltd
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
+import os
+
+import sys
+from charmhelpers.core import hookenv
 from charmhelpers.core.hookenv import action_get, action_fail, action_set
 from lib.gluster.lib import BitrotOption, ScrubAggression, ScrubSchedule, \
     ScrubControl, GlusterOption
@@ -169,3 +186,36 @@ def set_volume_options():
             volume = value
 
     volume_set_options(volume, settings)
+
+
+# Actions to function mapping, to allow for illegal python action names that
+# can map to a python function.
+ACTIONS = {
+    "create-volume-quota": enable_volume_quota,
+    "delete-volume-quota": disable_volume_quota,
+    "disable-bitrot-scan": disable_bitrot_scan,
+    "enable-bitrot-scan": enable_bitrot_scan,
+    "list-volume-quotas": list_volume_quotas,
+    "pause-bitrot-scan": pause_bitrot_scan,
+    "resume-bitrot-scan": resume_bitrot_scan,
+    "set-bitrot-scan-frequency": set_bitrot_scan_frequency,
+    "set-bitrot-throttle": set_bitrot_throttle,
+    "set-volume-options": set_volume_options,
+}
+
+
+def main(args):
+    action_name = os.path.basename(args[0])
+    try:
+        action = ACTIONS[action_name]
+    except KeyError:
+        return "Action %s undefined" % action_name
+    else:
+        try:
+            action(args)
+        except Exception as e:
+            hookenv.action_fail(str(e))
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

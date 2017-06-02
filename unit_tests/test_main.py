@@ -14,6 +14,7 @@
 
 import sys
 import unittest
+import uuid
 from unittest.mock import MagicMock
 
 from result import Ok
@@ -25,8 +26,6 @@ from reactive import main
 mock_apt = MagicMock()
 sys.modules['apt'] = mock_apt
 mock_apt.apt_pkg = MagicMock()
-
-import uuid
 
 
 class Test(unittest.TestCase):
@@ -119,6 +118,9 @@ class Test(unittest.TestCase):
         for brick in result:
             print("Cartesian: {}".format(brick.uuid))
         self.assertListEqual(result, expected)
+
+    def testForNewDevices(self):
+        pass
 
 
 if __name__ == "__main__":
