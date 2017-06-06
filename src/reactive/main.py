@@ -149,7 +149,7 @@ def check_for_new_devices() -> Result:
             # Failed
             log("Device {} formatting failed with error: {}. Skipping".format(
                 handle.device.dev_path, output_result.value), ERROR)
-    log("Usable brick paths: {".format(brick_paths))
+    log("Usable brick paths: {}".format(brick_paths))
     return Ok(())
 
 
@@ -177,7 +177,7 @@ def server_changed() -> Result:
 
     :return:
     """
-    volume_name = config["volume_name"]
+    volume_name = config("volume_name")
 
     if is_leader():
         log("I am the leader: {}".format(relation_id()))
@@ -286,22 +286,22 @@ def create_volume(peers: List[Peer], volume_info: Optional[Volume]) -> Result:
         :param volume_info:
         :return:
     """
-    cluster_type_config = config["cluster_type"]
+    cluster_type_config = config("cluster_type")
     cluster_type = VolumeType(cluster_type_config)
-    volume_name = config["volume_name"]
+    volume_name = config("volume_name")
     replicas = 3
     try:
-        replicas = int(config["replication_level"])
+        replicas = int(config("replication_level"))
     except ValueError:
         log(format("Invalid integer {} for replicas.  "
-                   "Defaulting to 3.".format(config["replication_level"])))
+                   "Defaulting to 3.".format(config("replication_level"))))
 
     extra = 1
     try:
-        extra = int(config["extra_level"])
+        extra = int(config("extra_level"))
     except ValueError:
         log("Invalid integer {} for extra_level.  Defaulting to 1.".format(
-            config["extra_level"]))
+            config("extra_level")))
         extra = 1
     # Make sure all peers are in the cluster
     # spin lock
@@ -432,7 +432,7 @@ def expand_volume(peers: List[Peer], vol_info: Optional[Volume]) -> Result:
     :param vol_info:
     :return:
     """
-    volume_name = config["volume_name"]
+    volume_name = config("volume_name")
     # Are there new peers
     log("Checking for new peers to expand the volume named {}".format(
         volume_name))
@@ -470,7 +470,7 @@ def get_brick_list(peers: List[Peer], volume: Optional[Volume]) -> Result:
     :return:
     """
     brick_devices = []
-    replica_config = config["replication_level"]
+    replica_config = config("replication_level")
     replicas = 3
     try:
         replicas = int(replica_config)
@@ -619,7 +619,7 @@ def shrink_volume(peer: Peer, vol_info: Optional[Volume]):
     :param vol_info:
     :return:
     """
-    volume_name = config["volume_name"]
+    volume_name = config("volume_name")
     log("Shrinking volume named  {}".format(volume_name), INFO)
     peers = [peer]
 
@@ -648,7 +648,7 @@ def set_volume_options():
     :return:
     """
     status_set(workload_state="maintenance", message="Setting volume options")
-    volume_name = config['volume_name']
+    volume_name = config('volume_name')
     settings = [
         # Starting in gluster 3.8 NFS is disabled in favor of ganesha.
         # I'd like to stick with the legacy version a bit longer.
@@ -678,7 +678,7 @@ def set_volume_options():
             value=1024 * 1024 * 20)]
 
     # Set the split brain policy if requested
-    splitbrain_policy = config["splitbrain_policy"]
+    splitbrain_policy = config("splitbrain_policy")
     if splitbrain_policy is not None:
         # config.yaml has a default here.  Should always have a value
         try:
@@ -693,7 +693,7 @@ def set_volume_options():
         volume_set_options(volume_name, settings)
 
     # The has a default.  Should be safe
-    bitrot_config = bool(config["bitrot_detection"])
+    bitrot_config = bool(config("bitrot_detection"))
     if bitrot_config:
         log("Enabling bitrot detection")
         status_set(workload_state="active",
@@ -728,11 +728,10 @@ def check_for_sysctl() -> Result:
 
     :return:
     """
-    config = hookenv.config()
     if config.changed("sysctl"):
         config_path = os.path.join(os.sep, "etc", "sysctl.d",
                                    "50-gluster-charm.conf")
-        sysctl_dict = config["sysctl"]
+        sysctl_dict = config("sysctl")
         if sysctl_dict is not None:
             sysctl.create(sysctl_dict, config_path)
     return Ok(())
@@ -754,7 +753,7 @@ def check_for_upgrade() -> Result:
     current_version = get_glusterfs_version()
 
     log("Adding new source line")
-    source = config["source"]
+    source = config("source")
     if not source.is_some():
         # No upgrade requested
         log("Source not set.  Cannot continue with upgrade")
@@ -889,7 +888,7 @@ def ephemeral_unmount() -> Result:
 
     :return:
     """
-    mountpoint = config["ephemeral_unmount"]
+    mountpoint = config("ephemeral_unmount")
     if mountpoint is None:
         return Ok(())
     # Remove the entry from the fstab if it's set
@@ -913,9 +912,9 @@ def finish_initialization(device_path: os.path) -> Result:
     :param device_path: 
     :return: 
     """
-    filesystem_config_value = config["filesystem_type"]
-    defrag_interval = config["defragmentation_interval"]
-    disk_elevator = config["disk_elevator"]
+    filesystem_config_value = config("filesystem_type")
+    defrag_interval = config("defragmentation_interval")
+    disk_elevator = config("disk_elevator")
     scheduler = Scheduler(disk_elevator)
     filesystem_type = FilesystemType(filesystem_config_value)
     mount_path = "/mnt/{}".format(device_path.file_name().unwrap())
@@ -964,11 +963,11 @@ def initialize_storage(device: BrickDevice) -> Result:
     :param device: 
     :return: 
     """
-    filesystem_config_value = config["filesystem_type"]
+    filesystem_config_value = config("filesystem_type")
     # Custom params
-    stripe_width = int(config["raid_stripe_width"])
-    stripe_size = int(config["raid_stripe_size"])
-    inode_size = int(config["inode_size"])
+    stripe_width = config("raid_stripe_width")
+    stripe_size = config("raid_stripe_size")
+    inode_size = config("inode_size")
 
     filesystem_type = FilesystemType(filesystem_config_value)
     init = None
@@ -1071,7 +1070,7 @@ def mount_cluster() -> Result:
 
     :return: Result.  Ok or Err depending on the outcome of mount
     """
-    volume_name = config['volume_name']
+    volume_name = config('volume_name')
     if not os.path.exists("/mnt/glusterfs"):
         os.makedirs("/mnt/glusterfs")
     if not filesystem_mounted("/mnt/glusterfs"):
@@ -1118,7 +1117,7 @@ def update_status() -> Result:
     """
     version = get_glusterfs_version()
     application_version_set("{}".format(version))
-    volume_name = config["volume_name"]
+    volume_name = config("volume_name")
 
     local_bricks = get_local_bricks(volume_name)
     if local_bricks.is_ok():

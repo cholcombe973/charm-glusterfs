@@ -489,7 +489,7 @@ def get_device_info(device_path: os.path) -> Result:  # <Device, str>
 
 # Given a dev device path /dev/xvdb this will check to see if the device
 # has been formatted and mounted
-def device_initialized(brick_path: os.path) -> Result:
+def device_initialized(brick_path: os.path) -> bool:
     """
     Connect to the default unitdata database
 
@@ -502,7 +502,10 @@ def device_initialized(brick_path: os.path) -> Result:
     log("{} initialized: {}".format(brick_path, unit_info))
     # Either it's Some() and we know about the unit
     # or it's None and we don't know and therefore it's not initialized
-    return Ok(unit_info.unwrap_or(False))
+    if not unit_info:
+        return False
+    else:
+        return True
 
 
 def scan_devices(devices: List[str]) -> Result:
@@ -512,6 +515,7 @@ def scan_devices(devices: List[str]) -> Result:
     :return: 
     """
     brick_devices = []
+    log("scan_devices input: type: {} {}".format(type(devices), devices))
     for brick in devices:
         device_path = os.path.join(brick)
         # Translate to mount location
@@ -523,8 +527,7 @@ def scan_devices(devices: List[str]) -> Result:
             continue
         log("Checking if {} is initialized".format(device_path))
         initialized = False
-        is_initialized = device_initialized(device_path)
-        if is_initialized.is_ok():
+        if device_initialized(device_path):
             initialized = True
         mount_path = os.path.join(os.sep, "mnt", brick_filename)
         # All devices start at initialized is False
@@ -615,14 +618,12 @@ def get_manual_bricks() -> Result:
     """
     log("Gathering list of manually specified brick devices")
     brick_list = []
-    manual_config_brick_devices = config["brick_devices"]
-    for brick in manual_config_brick_devices:
-        brick_parts = brick.split(" ")
-        if brick_parts is not None:
-            brick_list.append(brick_parts)
-    log("List of manual storage brick devices: {}".format(
-        manual_config_brick_devices))
-    bricks = scan_devices(manual_config_brick_devices)
+    manual_config_brick_devices = config("brick_devices")
+    for brick in manual_config_brick_devices.split(" "):
+        if brick is not None:
+            brick_list.append(brick)
+    log("List of manual storage brick devices: {}".format(brick_list))
+    bricks = scan_devices(brick_list)
     if bricks.is_err():
         return Err(bricks.value)
     return Ok(bricks.value)
@@ -644,9 +645,8 @@ def get_juju_bricks() -> Result:
         if s is not None:
             brick_list.append(s.strip())
 
-    log("List of juju storage brick devices: {}".format(
-        juju_config_brick_devices))
-    bricks = scan_devices(juju_config_brick_devices)
+    log("List of juju storage brick devices: {}".format(brick_list))
+    bricks = scan_devices(brick_list)
     if bricks.is_err():
         return Err(bricks.value)
     return Ok(bricks.value)

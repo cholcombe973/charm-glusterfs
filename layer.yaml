@@ -1,2 +1,0 @@
-includes: ['layer:basic']
-repo: https://git.openstack.org/openstack/charm-gluster

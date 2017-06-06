@@ -68,7 +68,7 @@ def roll_cluster(new_version: str) -> Result:
     :return: 
     """
     log("roll_cluster called with {}".format(new_version))
-    volume_name = config["volume_name"]
+    volume_name = config("volume_name")
     my_uuid = get_local_uuid()
     if my_uuid.is_err():
         return Err(my_uuid.value)

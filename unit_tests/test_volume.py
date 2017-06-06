@@ -74,6 +74,7 @@ class Test(unittest.TestCase):
             result = volume.parse_quota_list("".join(lines))
             self.assertTrue(result.is_ok())
             self.assertTrue(len(result.value) == 2)
+            self.assertListEqual(expected_quotas, result.value)
 
     def testParseVolumeList(self):
         with open('unit_tests/vol_list.xml', 'r') as xml_output:

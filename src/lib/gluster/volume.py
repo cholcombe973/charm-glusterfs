@@ -72,7 +72,6 @@ class Quota(object):
         else:
             self.hard_limit_exceeded = True
 
-    """
     def __eq__(self, other):
         return self.path == other.path and \
                self.hard_limit == other.hard_limit and \
@@ -81,7 +80,6 @@ class Quota(object):
                self.used == other.used and self.avail == other.avail and \
                self.soft_limit_exceeded == other.soft_limit_exceeded and \
                self.hard_limit_exceeded == other.hard_limit_exceeded
-    """
 
     def __str__(self):
         return "path:{path} hard limit:{hard_limit} " \

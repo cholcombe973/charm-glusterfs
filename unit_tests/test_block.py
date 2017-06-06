@@ -46,7 +46,8 @@ class Test(unittest.TestCase):
         _scan_devices.return_value = Ok(["/dev/sda", "/dev/sdb", "/dev/sdc"])
         bricks = block.get_manual_bricks()
         self.assertTrue(bricks.is_ok())
-        self.assertListEqual(["/dev/sda", "/dev/sdb", "/dev/sdc"], bricks.value)
+        self.assertListEqual(["/dev/sda", "/dev/sdb", "/dev/sdc"],
+                             bricks.value)
 
     def testSetElevator(self):
         pass

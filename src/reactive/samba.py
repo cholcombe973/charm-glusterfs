@@ -62,7 +62,7 @@ def setup_samba(volume_name: str):
     :param volume_name: 
     :return: 
     """
-    cifs_config = config["cifs"]
+    cifs_config = config("cifs")
     if cifs_config is None:
         # Samba isn't enabled
         return
