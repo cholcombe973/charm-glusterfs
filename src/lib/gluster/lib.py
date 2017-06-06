@@ -403,8 +403,9 @@ class GlusterOption(object):
                                  value=i)
         elif s == "cluster-self-heal-window-size":
             i = int(value)
-            return GlusterOption(option=GlusterOption.ClusterSelfHealWindowSize,
-                                 value=i)
+            return GlusterOption(
+                option=GlusterOption.ClusterSelfHealWindowSize,
+                value=i)
         elif s == "cluster-data-self-heal-algorithm":
             s = SelfHealAlgorithm.from_str(value)
             return GlusterOption(
@@ -429,8 +430,9 @@ class GlusterOption(object):
             return GlusterOption(option=GlusterOption.DiagnosticsBrickLogLevel,
                                  value="")
         elif s == "diagnostics-client-log-level":
-            return GlusterOption(option=GlusterOption.DiagnosticsClientLogLevel,
-                                 value="")
+            return GlusterOption(
+                option=GlusterOption.DiagnosticsClientLogLevel,
+                value="")
         elif s == "diagnostics-latency-measurement":
             t = Toggle.from_str(value)
             return GlusterOption(
@@ -462,10 +464,12 @@ class GlusterOption(object):
                                  value=t)
         elif s == "features-read-only":
             t = Toggle.from_str(value)
-            return GlusterOption(option=GlusterOption.FeaturesReadOnly, value=t)
+            return GlusterOption(
+                option=GlusterOption.FeaturesReadOnly, value=t)
         elif s == "features-lock-heal":
             t = Toggle.from_str(value)
-            return GlusterOption(option=GlusterOption.FeaturesLockHeal, value=t)
+            return GlusterOption(
+                option=GlusterOption.FeaturesLockHeal, value=t)
         elif s == "features-quota-timeout":
             i = int(value)
             return GlusterOption(option=GlusterOption.FeaturesQuotaTimeout,
@@ -491,10 +495,12 @@ class GlusterOption(object):
             t = Toggle.from_str(value)
             return GlusterOption(option=GlusterOption.NfsTrustedSync, value=t)
         elif s == "nfs-export-dir":
-            return GlusterOption(option=GlusterOption.NfsExportDir, value=value)
+            return GlusterOption(
+                option=GlusterOption.NfsExportDir, value=value)
         elif s == "nfs-export-volumes":
             t = Toggle.from_str(value)
-            return GlusterOption(option=GlusterOption.NfsExportVolumes, value=t)
+            return GlusterOption(
+                option=GlusterOption.NfsExportVolumes, value=t)
         elif s == "nfs-rpc-auth-unix":
             t = Toggle.from_str(value)
             return GlusterOption(option=GlusterOption.NfsRpcAuthUnix, value=t)
@@ -503,7 +509,8 @@ class GlusterOption(object):
             return GlusterOption(option=GlusterOption.NfsRpcAuthNull, value=t)
         elif s == "nfs-ports-insecure":
             t = Toggle.from_str(value)
-            return GlusterOption(option=GlusterOption.NfsPortsInsecure, value=t)
+            return GlusterOption(
+                option=GlusterOption.NfsPortsInsecure, value=t)
         elif s == "nfs-addr-namelookup":
             t = Toggle.from_str(value)
             return GlusterOption(option=GlusterOption.NfsAddrNamelookup,
@@ -556,7 +563,8 @@ class GlusterOption(object):
         elif s == "performance-readdir-cache-limit":
             i = int(value)
             return GlusterOption(
-                option=GlusterOption.PerformanceReadDirAheadCacheLimit, value=i)
+                option=GlusterOption.PerformanceReadDirAheadCacheLimit,
+                value=i)
         elif s == "server.ssl":
             t = Toggle.from_str(value)
             return GlusterOption(option=GlusterOption.ServerSsl, value=t)

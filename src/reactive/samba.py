@@ -12,9 +12,9 @@ def render_samba_configuration(f: TextIOBase, volume_name: str) -> int:
     """
     Write the samba configuration file out to disk
 
-    :param f: 
-    :param volume_name: 
-    :return: 
+    :param f: TextIOBase handle to the sambe config file
+    :param volume_name: str
+    :return: int of bytes written
     """
     bytes_written = 0
     bytes_written += f.write("[{}]\n".format(volume_name))
@@ -34,9 +34,9 @@ def render_samba_configuration(f: TextIOBase, volume_name: str) -> int:
 @when_file_changed('/etc/samba/smb.conf')
 def samba_config_changed(volume_name: str) -> bool:
     """
-
-    :param volume_name: 
-    :return: 
+    Checks whether a samba config file has changed or not.
+    :param volume_name: str.
+    :return: True or False
     """
     samba_path = os.path.join(os.sep, 'etc', 'samba', 'smb.conf')
     if os.path.exists(samba_path):
@@ -58,9 +58,8 @@ def samba_config_changed(volume_name: str) -> bool:
 @when_not('samba.installed')
 def setup_samba(volume_name: str):
     """
-
-    :param volume_name: 
-    :return: 
+    Installs and starts up samba
+    :param volume_name: str. Gluster volume to start samba on
     """
     cifs_config = config("cifs")
     if cifs_config is None:

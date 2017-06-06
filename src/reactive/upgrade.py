@@ -16,8 +16,8 @@ from charmhelpers.core.hookenv import config, log, status_set
 
 def get_glusterfs_version() -> Result:
     """
-
-    :return:
+    Find out what the current installed glusterfs version is
+    :return: Result with Ok or Err
     """
     cmd = ["-s", "glusterfs-server"]
     output = run_command("dpkg", cmd, True, False)
@@ -42,7 +42,7 @@ def get_local_uuid() -> Result:
     UUID=30602134-698f-4e53-8503-163e175aea85
     operating-version=30800
 
-    :return: 
+    :return: Result with Ok or Err.
     """
     with open("/var/lib/glusterd/glusterd.info", "r") as f:
         lines = f.readlines()
@@ -64,8 +64,8 @@ def roll_cluster(new_version: str) -> Result:
     If I'm not first in line I'll wait a random time between 5-30 seconds
     and test to see if the previous peer is upgraded yet.
 
-    :param new_version: 
-    :return: 
+    :param new_version: str.  new version to upgrade to
+    :return: Result with Ok or Err.
     """
     log("roll_cluster called with {}".format(new_version))
     volume_name = config("volume_name")
@@ -104,9 +104,9 @@ def roll_cluster(new_version: str) -> Result:
 
 def upgrade_peer(new_version: str) -> Result:
     """
-
-    :param new_version: 
-    :return: 
+    Upgrade a specific peer
+    :param new_version: str.  new version to upgrade to
+    :return: Result with Ok or Err.
     """
     from .main import update_status
 
@@ -124,10 +124,10 @@ def upgrade_peer(new_version: str) -> Result:
 
 def lock_and_roll(my_uuid: uuid.UUID, version: str) -> Result:
     """
-
-    :param my_uuid: 
-    :param version: 
-    :return: 
+    Lock and prevent others from upgrading and upgrade this particular peer
+    :param my_uuid: uuid.UUID of the peer to upgrade
+    :param version: str.  Version to upgrade to
+    :return: Result with Ok or Err
     """
     start_timestamp = time.time()
 
@@ -151,9 +151,9 @@ def lock_and_roll(my_uuid: uuid.UUID, version: str) -> Result:
 
 def gluster_key_get(key: str) -> Optional[float]:
     """
-
-    :param key: 
-    :return: 
+    Get an upgrade key from the gluster local mount
+    :param key: str.  Name of key to get
+    :return: Optional[float] with a timestamp
     """
     upgrade_key = os.path.join(os.sep, "mnt", "glusterfs", ".upgrade", key)
     if not os.path.exists(upgrade_key):
@@ -178,10 +178,10 @@ def gluster_key_get(key: str) -> Optional[float]:
 
 def gluster_key_set(key: str, timestamp: float) -> Result:
     """
-
-    :param key: 
-    :param timestamp: 
-    :return: 
+    Set a key and a timestamp on the local glusterfs mount
+    :param key: str. Name of the key
+    :param timestamp: float.  Timestamp
+    :return: Result with Ok or Err
     """
     p = os.path.join(os.sep, "mnt", "glusterfs", ".upgrade")
     if os.path.exists(p):
@@ -203,10 +203,10 @@ def gluster_key_exists(key: str) -> bool:
 
 def wait_on_previous_node(previous_node: Peer, version: str) -> Result:
     """
-
-    :param previous_node: 
-    :param version: 
-    :return: 
+    Wait on a previous node to finish upgrading
+    :param previous_node: Peer to wait on
+    :param version: str.  Version we're upgrading to
+    :return: Result with Ok or Err
     """
     log("Previous node is: {}".format(previous_node))
     previous_node_finished = gluster_key_exists(
@@ -229,10 +229,12 @@ def wait_on_previous_node(previous_node: Peer, version: str) -> Result:
             if float(current_timestamp - 600) > previous_node_start_time:
                 # Previous node is probably dead.  Lets move on
                 if previous_node_start_time is not None:
-                    log("Waited 10 mins on node {}. current time: {} > "
-                        "previous node start time: {} Moving on".format(
-                        previous_node.uuid, (current_timestamp - 600),
-                        previous_node_start_time))
+                    log("Waited 10 mins on node {}. "
+                        "current time: {} > "
+                        "previous node start time: {} "
+                        "Moving on".format(previous_node.uuid,
+                                           (current_timestamp - 600),
+                                           previous_node_start_time))
                     return Ok(())
             else:
                 # I have to wait.  Sleep a random amount of time and then

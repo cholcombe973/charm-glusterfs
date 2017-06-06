@@ -13,9 +13,9 @@ class FsEntry:
         :param mountpoint:  the mount point
         :param vfs_type:  which filesystem type it is
         :param mount_options: mount options
-        :param dump: This field is used by dump(8) to determine which 
+        :param dump: This field is used by dump(8) to determine which
         filesystems need to be dumped
-        :param fsck_order: This field is used by fsck(8) to determine the 
+        :param fsck_order: This field is used by fsck(8) to determine the
         order in which filesystem checks are done at boot time.
         """
         self.fs_spec = fs_spec
@@ -26,12 +26,12 @@ class FsEntry:
         self.fsck_order = fsck_order
 
     def __eq__(self, item):
-        if item.fs_spec == self.fs_spec and \
-                        item.mountpoint == self.mountpoint and \
-                        item.vfs_type == self.vfs_type and \
-                        item.mount_options == self.mount_options and \
-                        item.dump == self.dump and \
-                        item.fsck_order == self.fsck_order:
+        if (item.fs_spec == self.fs_spec) and \
+                (item.mountpoint == self.mountpoint) and \
+                (item.vfs_type == self.vfs_type) and \
+                (item.mount_options == self.mount_options) and \
+                (item.dump == self.dump) and \
+                (item.fsck_order == self.fsck_order):
             return True
         return False
 
@@ -55,7 +55,7 @@ class FsTab:
         mount point information in /etc/vfstab file. AIX stores block device
         and mount points information in /etc/filesystems file.
 
-        :return: 
+        :return: Result with Ok or Err
         """
         with open(self.location, "r") as file:
             entries = self.parse_entries(file)
@@ -65,9 +65,9 @@ class FsTab:
 
     def parse_entries(self, file: TextIOWrapper) -> Result:
         """
-
-        :param file: 
-        :return: 
+        Parse fstab entries
+        :param file: TextIOWrapper file handle to the fstab
+        :return: Result with Ok or Err
         """
         entries = []
         contents = file.readlines()
@@ -90,35 +90,36 @@ class FsTab:
 
     def save_fstab(self, entries: List[FsEntry]) -> Result:
         """
-
-        :param entries: 
-        :return: 
+        Save an fstab to disk
+        :param entries: List[FsEntry]
+        :return: Result with Ok or Err
         """
         try:
             with open(self.location, "w") as f:
                 bytes_written = 0
                 for entry in entries:
                     bytes_written += f.write(
-                        "{spec} {mount} {vfs} {options} {dump} {fsck}\n".format(
-                            spec=entry.fs_spec,
-                            mount=entry.mountpoint.display(),
-                            vfs=entry.vfs_type,
-                            options=",".join(entry.mount_options),
-                            dump="1" if entry.dump else "0",
-                            fsck=entry.fsck_order))
+                        "{spec} {mount} {vfs} {options} {dump} "
+                        "{fsck}\n".format(spec=entry.fs_spec,
+                                          mount=entry.mountpoint.display(),
+                                          vfs=entry.vfs_type,
+                                          options=",".join(
+                                              entry.mount_options),
+                                          dump="1" if entry.dump else "0",
+                                          fsck=entry.fsck_order))
                 return Ok(bytes_written)
         except OSError:
             pass
 
     def add_entry(self, entry: FsEntry) -> Result:
         """
-        Add a new entry to the fstab.  If the fstab previously did not 
+        Add a new entry to the fstab.  If the fstab previously did not
         contain this entry
-        then true is returned.  Otherwise it will return false indicating 
+        then true is returned.  Otherwise it will return false indicating
         it has been updated
 
-        :param entry: 
-        :return: 
+        :param entry: FsEntry to add
+        :return: Result with Ok or Err
         """
         entries = self.get_entries()
         if entries.is_err():
@@ -141,8 +142,8 @@ class FsTab:
         """
         Bulk add a new entries to the fstab.
 
-        :param entries: 
-        :return: 
+        :param entries: List[FsEntry] to add
+        :return: Result with Ok or Err
         """
         existing_entries = self.get_entries()
         if existing_entries.is_err():
@@ -161,12 +162,12 @@ class FsTab:
 
     def remove_entry(self, spec: str) -> Result:
         """
-        Remove the fstab entry that corresponds to the spec given.  
+        Remove the fstab entry that corresponds to the spec given.
         IE: first fields match
         Returns true if the value was present in the fstab.
 
-        :param spec: 
-        :return: 
+        :param spec: str. fstab spec to match against and remove
+        :return: Result with Ok or Err
         """
         entries = self.get_entries()
         if entries.is_err():

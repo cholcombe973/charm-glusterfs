@@ -96,11 +96,11 @@ class BrickDevice:
     def __init__(self, is_block_device: bool, initialized: bool,
                  mount_path: str, dev_path: os.path):
         """
-
-        :param is_block_device: 
-        :param initialized: 
-        :param mount_path: 
-        :param dev_path: 
+        A Gluster brick device.
+        :param is_block_device: bool
+        :param initialized: bool
+        :param mount_path: str to mount path
+        :param dev_path: os.path to dev path
         """
         self.is_block_device = is_block_device
         self.initialized = initialized
@@ -108,10 +108,10 @@ class BrickDevice:
         self.dev_path = dev_path
 
     def __eq__(self, other):
-        return self.is_block_device == other.is_block_device \
-               and self.initialized == other.initialized \
-               and self.mount_path == other.mount_path \
-               and self.dev_path == other.dev_path
+        return (self.is_block_device == other.is_block_device) and \
+               (self.initialized == other.initialized) and \
+               (self.mount_path == other.mount_path) and \
+               (self.dev_path == other.dev_path)
 
     def __str__(self):
         return "is block device: {} initialized: {} " \
@@ -129,9 +129,9 @@ class AsyncInit:
         The child process needed for this device initialization
         This will be an async spawned Popen handle
 
-        :param format_child: 
-        :param post_setup_commands:  After formatting is complete run these 
-            commands to setup the filesystem ZFS needs this.  
+        :param format_child: subprocess handle.
+        :param post_setup_commands:  After formatting is complete run these
+            commands to setup the filesystem ZFS needs this.
             These should prob be run in sync mode
         :param device: # The device we're initializing
         """
@@ -170,10 +170,10 @@ class Btrfs(Filesystem):
     def __init__(self, metadata_profile: MetadataProfile, leaf_size: int,
                  node_size: int):
         """
-
-        :param metadata_profile: 
-        :param leaf_size: 
-        :param node_size: 
+        Btrfs filesystem.
+        :param metadata_profile: MetadatProfile
+        :param leaf_size: int
+        :param node_size: int
         """
         super().__init__()
         self.metadata_profile = metadata_profile
@@ -186,11 +186,11 @@ class Ext4(Filesystem):
                  reserved_blocks_percentage: int, stride: Optional[int],
                  stripe_width: Optional[int]):
         """
-
-        :param inode_size: 
-        :param reserved_blocks_percentage: 
-        :param stride: 
-        :param stripe_width: 
+        Ext4 filesystem.
+        :param inode_size: Optional[int]
+        :param reserved_blocks_percentage: int
+        :param stride: Optional[int]
+        :param stripe_width: Optional[int]
         """
         super().__init__()
         if inode_size is None:
@@ -213,12 +213,12 @@ class Xfs(Filesystem):
                  stripe_size: Optional[int], stripe_width: Optional[int],
                  force: bool):
         """
-
-        :param block_size: 
-        :param inode_size: 
-        :param stripe_size: 
-        :param stripe_width: 
-        :param force: 
+        Xfs filesystem
+        :param block_size:  Optional[int]
+        :param inode_size:  Optional[int]
+        :param stripe_size:  Optional[int]
+        :param stripe_width:  Optional[int]
+        :param force: bool
         """
         super().__init__()
         self.block_size = block_size
@@ -236,9 +236,9 @@ class Zfs(Filesystem):
     # / power of 2 from 512 bytes to 128 Kbytes is valid.
     def __init__(self, block_size: Optional[int], compression: Optional[bool]):
         """
-
-        :param block_size: 
-        :param compression: 
+        ZFS filesystem
+        :param block_size: Optional[int]
+        :param compression: Optional[bool]
         """
         super().__init__()
         self.block_size = block_size
@@ -249,10 +249,10 @@ class Zfs(Filesystem):
 # This assumes the device is formatted at this point
 def mount_device(device: Device, mount_point: str) -> Result:
     """
-
-    :param device: 
-    :param mount_point: 
-    :return: 
+    mount a device at a mount point
+    :param device: Device.
+    :param mount_point: str.  Place to mount to.
+    :return: Result with Ok or Err
     """
     arg_list = []
     if device.id:
@@ -266,20 +266,31 @@ def mount_device(device: Device, mount_point: str) -> Result:
 
 
 def power_of_2(number: int) -> bool:
+    """
+    Check whether this number is a power of 2
+    :param number: int
+    :return: True or False if it is a power of 2
+    """
     return ((number - 1) & number == 0) and not number == 0
 
 
 def next_power_of_two(x: int) -> int:
+    """
+    Get the next power of 2
+    :param x: int
+    :return: int.  The next largest power of 2
+    """
     return 2 ** (x - 1).bit_length()
 
 
 def format_block_device(brick_device: BrickDevice,
                         filesystem: Filesystem) -> AsyncInit:
     """
-
-    :param brick_device: 
-    :param filesystem: 
-    :return: 
+    Format a block device with a given filesystem asynchronously.
+    :param brick_device: BrickDevice.
+    :param filesystem: Filesystem.
+    :return: AsyncInit.  Starts formatting immediately and gives back a handle
+    to access it.
     """
     device = brick_device.dev_path
     if type(filesystem) is Btrfs:
@@ -393,9 +404,9 @@ def format_block_device(brick_device: BrickDevice,
 
 def get_size(device: pyudev.Device) -> Optional[int]:
     """
-
-    :param device: 
-    :return: 
+    Get the size of a udev device.
+    :param device: pyudev.Device
+    :return: Optional[int] if the size is available.
     """
     size = device.attributes.get('size')
     if size is not None:
@@ -405,9 +416,9 @@ def get_size(device: pyudev.Device) -> Optional[int]:
 
 def get_uuid(device: pyudev.Device) -> Optional[uuid.UUID]:
     """
-
-    :param device: 
-    :return: 
+    Get the uuid of a udev device.
+    :param device: pyudev.Device to check
+    :return: Optional[uuid.UUID] if the UUID is available.
     """
     uuid_str = device.properties.get("ID_FS_UUID")
     if uuid_str is not None:
@@ -417,9 +428,9 @@ def get_uuid(device: pyudev.Device) -> Optional[uuid.UUID]:
 
 def get_fs_type(device: pyudev.Device) -> Optional[FilesystemType]:
     """
-
-    :param device: 
-    :return: 
+    Get the filesystem type of a udev device.
+    :param device: pyudev.Device to check
+    :return: Optional[FilesystemType] if available
     """
     fs_type_str = device.properties.get("ID_FS_TYPE")
     if fs_type_str is not None:
@@ -429,9 +440,9 @@ def get_fs_type(device: pyudev.Device) -> Optional[FilesystemType]:
 
 def get_media_type(device: pyudev.Device) -> MediaType:
     """
-
-    :param device: 
-    :return: 
+    Get the media type of a udev device.
+    :param device: pyudev.Device to check
+    :return: MediaType
     """
     device_sysname = device.sys_name
     loop_regex = re.compile(r"loop\d+")
@@ -450,9 +461,9 @@ def get_media_type(device: pyudev.Device) -> MediaType:
 
 def is_block_device(device_path: str) -> Result:
     """
-
-    :param device_path: 
-    :return: 
+    Check if a device is a block device
+    :param device_path: str path to the device to check.
+    :return: Result with Ok or Err
     """
     context = Context()
     sysname = os.path.basename(device_path)
@@ -462,12 +473,12 @@ def is_block_device(device_path: str) -> Result:
     return Err("Unable to find device with name {}".format(device_path))
 
 
-# Tries to figure out what type of device this is
-def get_device_info(device_path: os.path) -> Result:  # <Device, str>
+def get_device_info(device_path: os.path) -> Result:
     """
+    Tries to figure out what type of device this is
 
-    :param device_path: 
-    :return: 
+    :param device_path: os.path to device.
+    :return: Result with Ok or Err
     """
     context = Context()
     sysname = device_path.basename()
@@ -487,21 +498,18 @@ def get_device_info(device_path: os.path) -> Result:  # <Device, str>
     return Err("Unable to find device with name {}".format(device_path))
 
 
-# Given a dev device path /dev/xvdb this will check to see if the device
-# has been formatted and mounted
 def device_initialized(brick_path: os.path) -> bool:
     """
-    Connect to the default unitdata database
+    Given a dev device path this will check to see if the device
+    has been formatted and mounted.
 
-    :param brick_path:
+    :param brick_path: os.path to the device.
     """
     log("Connecting to unitdata storage")
     unit_storage = kv()
     log("Getting unit_info")
     unit_info = unit_storage.get(brick_path)
     log("{} initialized: {}".format(brick_path, unit_info))
-    # Either it's Some() and we know about the unit
-    # or it's None and we don't know and therefore it's not initialized
     if not unit_info:
         return False
     else:
@@ -510,12 +518,12 @@ def device_initialized(brick_path: os.path) -> bool:
 
 def scan_devices(devices: List[str]) -> Result:
     """
-
-    :param devices: 
-    :return: 
+    Check a list of devices and convert to a list of BrickDevice
+    :param devices: List[str] of devices to check
+    :return: Result with Ok or Err
     """
     brick_devices = []
-    log("scan_devices input: type: {} {}".format(type(devices), devices))
+    log("scan_devices input: type: {}".format(devices))
     for brick in devices:
         device_path = os.path.join(brick)
         # Translate to mount location
@@ -542,10 +550,10 @@ def scan_devices(devices: List[str]) -> Result:
 def set_elevator(device_path: os.path,
                  elevator: Scheduler) -> Result:
     """
-
-    :param device_path: 
-    :param elevator: 
-    :return: 
+    Set the default elevator for a device
+    :param device_path: os.path to device
+    :param elevator: Scheduler
+    :return: Result with Ok or Err
     """
     log("Setting io scheduler for {} to {}".format(device_path, elevator))
     device_name = device_path.basename()
@@ -566,13 +574,15 @@ def set_elevator(device_path: os.path,
         return Err(bytes_written.value)
 
 
-def weekly_defrag(mount: str, fs_type: FilesystemType, interval: str) -> Result:
+def weekly_defrag(mount: str, fs_type: FilesystemType, interval: str) -> \
+        Result:
     """
-
-    :param mount: 
-    :param fs_type: 
-    :param interval: 
-    :return: 
+    Setup a weekly defrag of a mount point. Filesystems tend to fragment over
+    time and this helps keep Gluster's mount bricks fast.
+    :param mount: str to mount point location of the brick
+    :param fs_type: FilesystemType.  Some FS types don't have defrag
+    :param interval: str.  How often to defrag in crontab format.
+    :return: Result with Ok or Err.
     """
     log("Scheduling weekly defrag for {}".format(mount))
     crontab = os.path.join(os.sep, "var", "spool", "cron", "crontabs", "root")
@@ -613,8 +623,8 @@ def weekly_defrag(mount: str, fs_type: FilesystemType, interval: str) -> Result:
 
 def get_manual_bricks() -> Result:
     """
-
-    :return: 
+    Get the list of bricks from the config.yaml
+    :return: Result with Ok or Err
     """
     log("Gathering list of manually specified brick devices")
     brick_list = []
@@ -631,8 +641,8 @@ def get_manual_bricks() -> Result:
 
 def get_juju_bricks() -> Result:
     """
-
-    :return: 
+    Get the list of bricks from juju storage.
+    :return: Result with Ok or Err
     """
     log("Gathering list of juju storage brick devices")
     # Get juju storage devices

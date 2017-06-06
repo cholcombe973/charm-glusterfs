@@ -28,8 +28,7 @@ from lib.gluster.volume import quota_list, volume_add_quota, \
 
 def enable_bitrot_scan():
     """
-    
-    :return: 
+    Enable bitrot scan
     """
     vol = action_get("volume")
     if not vol:
@@ -41,21 +40,20 @@ def enable_bitrot_scan():
 
 def disable_bitrot_scan():
     """
-    
-    :return: 
+    Disable bitrot scan
     """
     vol = action_get("volume")
     if not vol:
         action_fail("volume not specified")
     output = volume_disable_bitrot(vol)
     if output.is_err():
-        action_fail("enable disable failed with error: {}".format(output.value))
+        action_fail("enable disable failed with error: {}".format(
+            output.value))
 
 
 def pause_bitrot_scan():
     """
-    
-    :return: 
+    Pause bitrot scan
     """
     vol = action_get("volume")
     option = BitrotOption.Scrub(ScrubControl.Pause)
@@ -67,8 +65,7 @@ def pause_bitrot_scan():
 
 def resume_bitrot_scan():
     """
-    
-    :return: 
+    Resume bitrot scan
     """
     vol = action_get("volume")
     option = BitrotOption.Scrub(ScrubControl.Resume)
@@ -80,8 +77,7 @@ def resume_bitrot_scan():
 
 def set_bitrot_scan_frequency():
     """
-    
-    :return: 
+    Set the bitrot scan frequency
     """
     vol = action_get("volume")
     frequency = action_get("frequency")
@@ -94,8 +90,7 @@ def set_bitrot_scan_frequency():
 
 def set_bitrot_throttle():
     """
-    
-    :return: 
+    Set how aggressive bitrot scanning should be
     """
     vol = action_get("volume")
     throttle = action_get("throttle")
@@ -108,8 +103,7 @@ def set_bitrot_throttle():
 
 def enable_volume_quota():
     """
-    
-    :return: 
+    Enable quotas on the volume
     """
     # Gather our action parameters
     volume = action_get("volume")
@@ -130,8 +124,7 @@ def enable_volume_quota():
 
 def disable_volume_quota():
     """
-    
-    :return: 
+    Disable quotas on the volume
     """
     volume = action_get("volume")
     path = action_get("path")
@@ -147,8 +140,7 @@ def disable_volume_quota():
 
 def list_volume_quotas():
     """
-    
-    :return: 
+    List quotas on the volume
     """
     volume = action_get("volume")
     quotas_enabled = volume_quotas_enabled(volume)
@@ -169,11 +161,9 @@ def list_volume_quotas():
 
 def set_volume_options():
     """
-    
-    :return: 
+    Set one or more options on the volume at once
     """
-    # volume is a required parameter so this should be safe
-    volume = ""
+    volume = action_get("volume")
 
     # Gather all of the action parameters up at once.  We don't know what
     # the user wants to change.

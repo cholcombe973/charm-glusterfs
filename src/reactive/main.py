@@ -17,7 +17,8 @@ from charmhelpers.core.unitdata import kv
 from charmhelpers.fetch import apt_update, add_source, apt_install
 from result import Err, Ok, Result
 
-from lib.gluster.lib import GlusterOption, SplitBrainPolicy, Toggle, run_command
+from lib.gluster.lib import GlusterOption, SplitBrainPolicy, Toggle, \
+    run_command
 # from .ctdb import VirtualIp
 # from .nfs_relation_joined import nfs_relation_joined
 from lib.gluster.peer import State, peer_list, peer_probe, peer_status, Peer
@@ -153,8 +154,8 @@ def check_for_new_devices() -> Result:
     return Ok(())
 
 
-def brick_and_server_cartesian_product(peers: List[Peer], paths: List[str]) -> \
-        List[Brick]:
+def brick_and_server_cartesian_product(peers: List[Peer], paths: List[str]) \
+        -> List[Brick]:
     """
 
     :param peers: A list of peers to match up against brick paths
@@ -391,7 +392,8 @@ def create_volume(peers: List[Peer], volume_info: Optional[Volume]) -> Result:
     elif cluster_type is VolumeType.DistributedAndReplicate:
         result = volume_create_replicated(volume_name,
                                           replicas,
-                                          Transport.Tcp, brick_list.value, True)
+                                          Transport.Tcp,
+                                          brick_list.value, True)
         if result.is_err():
             log("Failed to create volume: {}".format(result.value), ERROR)
             return Err(Status.FailedToCreate)
@@ -688,7 +690,8 @@ def set_volume_options():
                               value=policy))
         except ValueError:
             log("Failed to parse splitbrain_policy config setting: \
-                                          {}.".format(splitbrain_policy), ERROR)
+                                          {}.".format(splitbrain_policy),
+                ERROR)
     else:
         volume_set_options(volume_name, settings)
 
@@ -698,7 +701,7 @@ def set_volume_options():
         log("Enabling bitrot detection")
         status_set(workload_state="active",
                    message="Enabling bitrot detection.")
-        _ = volume_enable_bitrot(volume_name)
+        volume_enable_bitrot(volume_name)
     # Tell reactive we're all set here
     set_state("volume-options.set")
 
@@ -719,7 +722,7 @@ def start_gluster_volume(volume_name: str) -> Result:
         log("Start volume failed with output: {}".format(
             start_vol_result.value), ERROR)
         status_set(workload_state="blocked",
-                   message="Start volume failed.  Please check juju debug-log.")
+                   message="Start volume failed. Please check juju debug-log.")
         return Err(start_vol_result.value)
 
 
@@ -788,9 +791,10 @@ def check_for_upgrade() -> Result:
 
 def peers_are_ready(peer_list: Result) -> bool:
     """
-
-    :param peer_list: 
-    :return: 
+    Checks to see if all peers are ready.  Peers go through a number of states
+    before they are ready to be added to a volume.
+    :param peer_list: Result with a List[Peer]
+    :return: True or False if all peers are ready
     """
     if peer_list.is_ok():
         log("Got peer status: {}".format(peer_list.value))
@@ -807,7 +811,7 @@ def wait_for_peers() -> Result:
     HDD's are so slow that sometimes the peers take long to join the cluster.
     This will loop and wait for them ie spinlock
 
-    :return: 
+    :return: Result with Err if waited too long for the peers to become ready.
     """
     log("Waiting for all peers to enter the Peer in Cluster status")
     status_set(workload_state="maintenance",
@@ -851,7 +855,6 @@ def probe_in_units(existing_peers: List[Peer], related_units: List) -> Result:
         address_trimmed = address.strip()
         already_probed = any(peer.hostname == address_trimmed for peer in
                              existing_peers)
-        # .iter().any(|peer| peer.hostname == address_trimmed)
 
         # Probe the peer in
         if not already_probed:
@@ -868,10 +871,12 @@ def probe_in_units(existing_peers: List[Peer], related_units: List) -> Result:
 
 def find_new_peers(peers: List[Peer], volume_info: Volume) -> List[Peer]:
     """
-
-    :param peers: 
-    :param volume_info: 
-    :return: 
+    Checks two lists of peers to see if any new ones not already serving
+    a brick have joined.
+    :param peers: List[Peer].  List of peers to check.
+    :param volume_info: Volume. Existing volume info
+    :return: List[Peer] with any peers not serving a brick that can now
+    be used.
     """
     new_peers = []
     for peer in peers:
@@ -885,8 +890,8 @@ def find_new_peers(peers: List[Peer], volume_info: Volume) -> List[Peer]:
 
 def ephemeral_unmount() -> Result:
     """
-
-    :return:
+    Unmount amazon ephemeral mount points.
+    :return: Result with Ok or Err depending on the outcome of unmount.
     """
     mountpoint = config("ephemeral_unmount")
     if mountpoint is None:
@@ -908,9 +913,10 @@ def ephemeral_unmount() -> Result:
 
 def finish_initialization(device_path: os.path) -> Result:
     """
-
-    :param device_path: 
-    :return: 
+    Once devices have been formatted this is called to run fstab entry setup,
+    updatedb exclusion, weekly defrags, etc.
+    :param device_path:  os.path to device
+    :return: Result with Ok or Err
     """
     filesystem_config_value = config("filesystem_type")
     defrag_interval = config("defragmentation_interval")
@@ -960,8 +966,8 @@ def initialize_storage(device: BrickDevice) -> Result:
     Format and mount block devices to ready them for consumption by Gluster
     Return an Initialization struct
 
-    :param device: 
-    :return: 
+    :param device: BrickDevice. The device to format.
+    :return: Result with Ok or Err.
     """
     filesystem_config_value = config("filesystem_type")
     # Custom params
@@ -1113,7 +1119,7 @@ def update_status() -> Result:
     """
     Update the juju status information
 
-    :return: 
+    :return: Result with Ok or Err.
     """
     version = get_glusterfs_version()
     application_version_set("{}".format(version))

@@ -6,16 +6,15 @@ __author__ = 'Chris Holcombe <chris.holcombe@canonical.com>'
 
 
 class ShellScript(object):
-    # A very basic representation of a shell script. There is an interpreter,
-    # some comments and a list of commands
     def __init__(self, interpreter: str, comments: List[str],
                  commands: List[str]):
-        # the interpreter to use
         """
-
-        :param interpreter: 
-        :param comments: 
-        :param commands: 
+        A very basic representation of a shell script. There is an interpreter,
+        some comments and a list of commands the interpreter to use
+        Create a new ShellScript object
+        :param interpreter: str The interpreter to use ie /bin/bash etc
+        :param comments: List[str] of comments
+        :param commands: List[str] of commands
         """
         self.interpreter = interpreter
         # Any comments here will be joined with newlines when written back out
@@ -36,9 +35,9 @@ class ShellScript(object):
 
 def parse(f: TextIOBase) -> Result:
     """
-
-    :param f: 
-    :return: 
+    Parse a shellscript and return a ShellScript
+    :param f: TextIOBase handle to the shellscript file
+    :return: Result with Ok or Err
     """
     comments = []
     commands = []

@@ -34,10 +34,10 @@ class Brick(object):
         return "{}:{}".format(self.peer.hostname, self.path)
 
     def __eq__(self, other):
-        return self.uuid == other.uuid \
-               and self.peer == other.peer \
-               and self.path == other.path \
-               and self.is_arbiter == other.is_arbiter
+        return (self.uuid == other.uuid) and \
+               (self.peer == other.peer) and \
+               (self.path == other.path) and \
+               (self.is_arbiter == other.is_arbiter)
 
 
 class Quota(object):
@@ -73,13 +73,14 @@ class Quota(object):
             self.hard_limit_exceeded = True
 
     def __eq__(self, other):
-        return self.path == other.path and \
-               self.hard_limit == other.hard_limit and \
-               self.soft_limit == other.soft_limit and \
-               self.soft_limit_percentage == other.soft_limit_percentage and \
-               self.used == other.used and self.avail == other.avail and \
-               self.soft_limit_exceeded == other.soft_limit_exceeded and \
-               self.hard_limit_exceeded == other.hard_limit_exceeded
+        return (self.path == other.path) and \
+               (self.hard_limit == other.hard_limit) and \
+               (self.soft_limit == other.soft_limit) and \
+               (self.soft_limit_percentage ==
+                other.soft_limit_percentage) and \
+               (self.used == other.used and self.avail == other.avail) and \
+               (self.soft_limit_exceeded == other.soft_limit_exceeded) and \
+               (self.hard_limit_exceeded == other.hard_limit_exceeded)
 
     def __str__(self):
         return "path:{path} hard limit:{hard_limit} " \

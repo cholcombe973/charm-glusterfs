@@ -1,4 +1,3 @@
-
 """
 def nfs_relation_joined() -> Result<(), String>
     config_value = juju::config_get("virtual_ip_addresses")
